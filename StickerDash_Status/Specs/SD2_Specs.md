@@ -123,3 +123,21 @@ LEARN MORE
 nothing to commit, working tree clean
 branch 'feat/x' set up to track 'origin/feat/x'.
 
+
+
+
+## Changelog 2025-10-01
+- **NL tooling hardened**:
+  - Added shared **NLCore.cs** (parser + writer + runner).
+  - **NL Tester** window restored at `Window → Aim2Pro → Track Creator → NL Tester`.
+  - Added **NL file runner** menus:
+    - `Window → Aim2Pro → Track Creator → NL → Parse From File`
+    - `Window → Aim2Pro → Track Creator → NL → Run From File`
+    - `Window → Aim2Pro → Track Creator → NL → Run From File (SBend Fix)`
+  - Files created: `StickerDash_Status/NL.input` (editable) and `StickerDash_Status/NL.sample.txt` (examples).
+- **How to use if the window doesn’t appear:**
+  1. Open `StickerDash_Status/NL.input`, edit NL.
+  2. Unity menu: **Window → Aim2Pro → Track Creator → NL → Run From File (SBend Fix)**.
+  3. This writes `StickerDash_Status/LastCanonical.plan` and runs the existing builder.
+  4. Check Console for `[A2P:NL]` logs confirming parser loaded.
+- Note: Unity hides new menus if there are *any compile errors* in Console. Fix errors, then the menus appear.

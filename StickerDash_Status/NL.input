@@ -1,0 +1,6 @@
+seed 7
+build 200 by 3
+safe margin 10
+s bend 60-120 at 25 degrees gain 2
+random holes 5%
+smooth columns

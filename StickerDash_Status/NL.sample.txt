@@ -1,0 +1,5 @@
+# Example NL lines (copy to NL.input)
+seed 1
+build 150 by 3
+safe margin 5
+s bend 40-100 at 25 degrees gain 2
