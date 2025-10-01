@@ -1,0 +1,18 @@
+{
+  "macros": {
+    "s_bend": { "expandsTo": [ {"op":"CurveRows"}, {"op":"CurveRows"} ],
+      "args": ["start","end","pattern","deg"] },
+
+    "random_holes": { "expandsTo": [ {"op":"DeleteTilesInRow"} ],
+      "args": ["densityPercent"] },
+
+    "insert_jump_gaps": { "expandsTo": [ {"op":"DeleteRow"} ],
+      "args": ["count","minSpacingRows","avoidCurves"] },
+
+    "random_straight_slopes": { "expandsTo": [ {"op":"SlopeRows"} ],
+      "args": [] },
+
+    "spline_smooth": { "expandsTo": [ {"op":"BuildSplineFromTrack"}, {"op":"Resample"} ],
+      "args": ["densityRowsPerMeter"] }
+  }
+}

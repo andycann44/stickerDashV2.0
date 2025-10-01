@@ -1,0 +1,49 @@
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Mm]emoryCaptures/
+UserSettings/
+.uvprojx
+.uvoptx
+*.csproj
+*.pidb
+*.suo
+*.user
+*.userprefs
+*.unityproj
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+*.swp
+*.sln
+*.tmp
+*.TMP
+*.tmp.meta
+*.TMP.meta
+*.orig
+*.orig.meta
+
+# Rider/VS caches
+.idea/
+.vscode/
+*.DotSettings.user
+
+# Addressables
+/Assets/AddressableAssetsData/*/*.bin*
+/Assets/AddressableAssetsData/*/*.hash
+/Assets/AddressableAssetsData/*/*_data.bin*
+
+# Cache
+/[Aa]ssets/StreamingAssets/aa/*
+/[Bb]ackup*/
+# Keep meta files
+!/[Aa]ssets/**/*.meta
+
+# Stickerdash project status (keep)
+!/StickerDash_Status/

@@ -1,0 +1,7 @@
+{
+  "cases": [
+    { "in":"rebuild 250 by 6", "expect": { "lengthMeters":250, "widthMeters":6 } },
+    { "in":"curve rows 50–60 left 30°", "expect": { "cmd":"CurveRows", "deg":30 } },
+    { "in":"smooth curves", "expect": { "macro":"spline_smooth" } }
+  ]
+}
