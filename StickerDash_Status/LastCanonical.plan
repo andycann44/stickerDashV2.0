@@ -1,0 +1,4 @@
+seed(12345)
+buildAbs(250,6)
+randomHoles(12)
+insertJumpGaps(2)
