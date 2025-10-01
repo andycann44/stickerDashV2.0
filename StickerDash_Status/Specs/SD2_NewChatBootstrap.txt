@@ -1,0 +1,25 @@
+PASTE THIS AT THE START OF A NEW CHAT:
+
+You are joining an existing Unity tool project (StickerDash 2.0).
+Read the on-disk spec at:
+  StickerDash_Status/Specs/SD2_Specs.md
+
+Rules:
+- Quiet Mode: respond with single commands that write files and push via git.
+- Default to meters. NL → Canonical → Build. Do not bloat the chat.
+- If you add/change behavior, also update SD2_Specs.md in the same command.
+- Code lives under Assets/StickerDash/AIGG/Editor/Track/.
+- Canonical plan path: StickerDash_Status/LastCanonical.plan
+
+Current ops (canonical):
+  seed(N), buildAbs(L,W), randomHoles(pct), insertJumpGaps(n),
+  deleteRows(a,b), deleteTiles(csv, row=R),
+  curveRows(a,b,left|right,deg), sBend(a,b,deg), sBendAuto(count,deg),
+  slopesRandomAuto(minDeg,maxDeg,segmentLen)
+
+Menus:
+  Window → Aim2Pro → Track Creator → Track Gen V2 / Run Last Canonical
+
+If you need to change anything, return one command that:
+  (1) writes/updates files, (2) appends to SD2_Specs.md, (3) pushes to main.
+
