@@ -1,0 +1,10 @@
+{
+  "steps": [
+    { "type":"lower" },
+    { "type":"collapseSpaces" },
+    { "type":"replace", "from":["\\u2012","\\u2013","\\u2014","\\u2212"], "to":"-" },
+    { "type":"replace", "from":["°","º"], "to":" deg" },
+    { "type":"synonyms", "source":"lexicon.synonyms" },
+    { "type":"defaultUnits", "source":"lexicon.unitsDefault" }
+  ]
+}

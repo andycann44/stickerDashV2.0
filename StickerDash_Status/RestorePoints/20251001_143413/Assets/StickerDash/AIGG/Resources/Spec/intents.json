@@ -1,0 +1,4 @@
+{ "intents": [
+  {"name":"set-tracks","regex":"\\b(\\d+)\\s+tracks?\\b","ops":[{"op":"set","path":"$.difficulty.tracks","value":"$1:int"}]},
+  {"name":"seed","regex":"\\bseed\\s+(\\d+)\\b","ops":[{"op":"set","path":"$.rand.seed","value":"$1:int"}]}
+]}

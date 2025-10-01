@@ -1,0 +1,8 @@
+{
+  "track": {
+    "lengthMeters": { "type":"number", "min": 1 },
+    "widthMeters":  { "type":"number", "min": 1 },
+    "tileWidth":    { "type":"number", "min": 0.01 },
+    "spline":       { "type":"object", "optional": true }
+  }
+}

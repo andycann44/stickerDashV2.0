@@ -1,0 +1,8 @@
+{
+  "rules": [
+    { "when":"widthUnit=m",    "set": { "$.track.widthMeters": "$widthValue:int" } },
+    { "when":"widthUnit=",     "set": { "$.track.widthMeters": "$widthValue:int" } },
+    { "when":"widthUnit=tiles","set": { "$.track.widthTiles": "$widthValue:int" } },
+    { "when":"lengthMeters",   "set": { "$.track.lengthMeters": "$lengthMeters:int" } }
+  ]
+}

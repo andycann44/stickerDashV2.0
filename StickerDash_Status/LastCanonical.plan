@@ -1,0 +1,8 @@
+# StickerDash Canonical Plan v2
+buildAbs(250,6)
+sBend(40,80,left-right,25)
+randomHoles(10)
+insertJumpGaps(3)
+randomStraightSlopes(2,6)
+splineSmooth(4)
+resample(2)

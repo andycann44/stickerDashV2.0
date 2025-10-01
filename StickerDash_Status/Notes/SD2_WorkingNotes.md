@@ -28,3 +28,24 @@
 
 ## Git Setup 2025-10-01 13:05:48
 - Initialized Git, added Unity .gitignore, configured Git LFS.
+
+## Update 2025-10-01 13:44:34
+- Added Track Generator v2: NL → plan → preview/run (meters/deg default).
+- Menu: Window → Aim2Pro → Track Creator → Track Generator v2
+
+## 2025-10-01 14:01:09 — Specs Registry Installed
+- Auto builds StickerDash_Status/Specs/SD2_Specs.json with hashes + timestamps of all key files.
+- Menu: Window → Aim2Pro → Status → {Open Specs Register, Force Rescan Specs, Add Spec Note…}
+
+## 2025-10-01 14:07:37 — Git tools installed
+- Added Window → Aim2Pro → Git → Quick Actions (pull/commit/push/open/tag).
+- Added pre-commit hook to block stray MenuItem paths.
+
+## 2025-10-01 14:18:22 — Canonical Paste window added
+- Window → Aim2Pro → Track Creator → Canonical Paste…
+- Validate, Dry Run, Apply. Save/Load .sdplan. Creates Restore Point via menu.
+- Last plan at StickerDash_Status/LastCanonical.plan
+
+## 2025-10-01 14:33:43 — Fix Restore Point copy
+- Ensure destination directories are created before copying (Create/Load).
+- Fixes DirectoryNotFoundException for ProjectSettings files.
