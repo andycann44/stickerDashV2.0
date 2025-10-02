@@ -33,3 +33,40 @@
 2. Add: `s bend A-B at DEG gain G`.
 3. Add: `random slopes MIN to MAX, segment N`.
 (Commit each step with specs + tests.)\n
+
+## NL Amendments — shipped 2025-10-02
+
+You can now type NL (plain English) to **rebuild** or **amend** without editing `LastCanonical.plan`:
+
+### Rebuild (fresh plan)
+- `rebuild 220 by 3 seed 11`
+- `build 200 by 3` (seed auto if random ops exist)
+- `safe start 10 end 10`
+- `random slopes 2 to 4 degrees, segment 2`
+- `auto s-bends 2 at 25`
+
+### Amend existing plan (append/modify)
+- Remove: `remove rows 80 to 120` · `remove tiles 2,4,7 in row 95`
+- Shape: `curve rows 40 to 60 left 20 degrees` · `s bend 60 to 120 at 25 gain 2`
+- Random features: `random holes 5%` · `add 2 jump gaps`
+- Smooth: `smooth heights`
+- Fork / merge: `fork 120 to 160 widen to 3` · `rejoin 200 to 240`
+- Protect: `protect start 10 end 10`
+
+### Fill / Solid (plan-level undo of deletes)
+- `fill row 120` · `fill rows 80 to 120` · `fill tiles 2,3 in row 95`
+- `solid track` / `fill all` — removes global delete ops (holes, jump gaps, deleteRows/tiles) from the base plan.
+
+> Note: Fill operates by editing the **base plan text**: it drops matching `deleteRows(...)`, `deleteTiles(..., row=R)`, and global delete ops (for **fill all**). It does not reverse random deletions that are not explicitly listed (e.g., `randomHoles`) unless you use **fill all**.
+
+### Macros (expanded automatically on write)
+- `smoothHeights(both, tolerance=0.02)` → `smoothColumns()`
+- `ySplit(a,b, gapStart=1, gapEnd=3)` — center divider widening
+- `yMerge(a,b, toGap=0)` — shrink the divider to rejoin
+
+### Auto-seed capture
+If your plan uses random ops and no `seed(...)`, a seed is auto-inserted and logged to `StickerDash_Status/Seeds.log` so later amendments keep the same randomness.
+
+### Menus
+- Window → Aim2Pro → Track Creator → **NL Tester** (type NL, Parse/Write/Run)
+- Window → Aim2Pro → Track Creator → NL → **Parse From File / Run From File**
