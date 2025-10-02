@@ -141,3 +141,6 @@ branch 'feat/x' set up to track 'origin/feat/x'.
   3. This writes `StickerDash_Status/LastCanonical.plan` and runs the existing builder.
   4. Check Console for `[A2P:NL]` logs confirming parser loaded.
 - Note: Unity hides new menus if there are *any compile errors* in Console. Fix errors, then the menus appear.
+\n\n## Changelog 2025-10-02
+- Fix compile: retargeted all **NLCore/NLCore2** references to **NLEngine** in `Assets/StickerDash/AIGG/Editor/Track/*.cs`.
+- If Unity still shows CS0103 for NLCore, clear Console and recompile (Assets → Reimport All).\n
