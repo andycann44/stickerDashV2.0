@@ -70,3 +70,13 @@ If your plan uses random ops and no `seed(...)`, a seed is auto-inserted and log
 ### Menus
 - Window → Aim2Pro → Track Creator → **NL Tester** (type NL, Parse/Write/Run)
 - Window → Aim2Pro → Track Creator → NL → **Parse From File / Run From File**
+
+
+## Changelog 2025-10-02
+- Fix: removed Tuple<> usage in NLEngine and replaced with simple structs to resolve CS1001.
+- Added System.Collections.Generic using and simplified fill/amend helpers.
+
+
+## Changelog 2025-10-02
+- Hotfix: replaced NLEngine.cs with a lean compile-safe version (rebuild + amend + smooth/fork/merge macros + auto-seed).
+- Temporarily deferred fill/solid to next patch after we confirm green compile.
