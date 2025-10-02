@@ -80,3 +80,7 @@ If your plan uses random ops and no `seed(...)`, a seed is auto-inserted and log
 ## Changelog 2025-10-02
 - Hotfix: replaced NLEngine.cs with a lean compile-safe version (rebuild + amend + smooth/fork/merge macros + auto-seed).
 - Temporarily deferred fill/solid to next patch after we confirm green compile.
+
+
+## Changelog 2025-10-02
+- Fixed PlanMacros to avoid char literal \\n; now uses StringReader for line iteration (more robust on all platforms).
