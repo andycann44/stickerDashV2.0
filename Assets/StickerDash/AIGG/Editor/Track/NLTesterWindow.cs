@@ -44,7 +44,8 @@ namespace Aim2Pro.AIGG {
             EditorGUILayout.EndHorizontal();
 
             GUILayout.Space(6);
-            using (new EditorGUILayout.HorizontalScope()){
+            using (new EditorGUILayout.HorizontalScope())
+            {
                 if (GUILayout.Button("Parse Only", GUILayout.Height(24))) {
                     _canon = NLEngine.ParseNL(_nl ?? "");
                 }

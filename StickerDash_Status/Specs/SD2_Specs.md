@@ -111,3 +111,11 @@ If your plan uses random ops and no `seed(...)`, a seed is auto-inserted and log
 - Added a **“+” insert button** in NL windows that pops a menu of ready-made commands
   (including *chicane left→right* and *right→left* examples). Clicking inserts text into the NL box.
 - File tools (Open NL.input / Parse From File / Run From File) remain accessible from the same bar.
+
+
+## Changelog 2025-10-03
+- **Track Gen V2 upgraded:** One window to **build** and **edit**.
+  - Main: Parse → Canonical, Build & Run, Run Last Canonical, **+** snippet inserter.
+  - Quick Amend line: type e.g. `remove rows 15 to 15` → Apply & Run.
+  - **Edit Panel:** Delete Rows / Delete Tiles / Curve Rows / Auto S-bends / Random Slopes / Insert Jump Gaps — each can **Append** to NL or **Run** immediately.
+- Uses existing canonical ops only (`deleteRows`, `deleteTiles`, `curveRows`, `sBendAuto`, `slopesRandomAuto`, `insertJumpGaps`) to avoid unsupported-command warnings.
