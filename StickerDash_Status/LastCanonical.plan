@@ -1,2 +1,2 @@
-seed(12345)
-sBendAuto(1,8)
+seed(576339390)\nbuildAbs(200,3)
+sBendAuto(2,25)
