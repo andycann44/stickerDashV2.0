@@ -175,33 +175,41 @@ namespace Aim2Pro.AIGG
             Debug.Log($"[Kernel] Scenario: {rows} rows × {cols} cols, bends:{opt.randomBends} ±{opt.bendMaxDeg}°, split:{opt.split}, missing:{opt.missingPct:P0}, verticalAmp:{opt.verticalAmp}m");
         }
 
+        
         private static Scenario ParseExtras(float lengthM, float widthM, string extras)
         {
             var s = new Scenario { lengthM = lengthM, widthM = widthM };
-            var e = (extras ?? "").ToLowerInvariant();
+            var e = (extras ?? string.Empty).ToLowerInvariant();
 
-            // 10% tiles missing
-            var mMiss = Regex.Match(e, @"(\d+)\s*%[^,]*tiles?\s*missing");
+            // % missing (holes/gaps/tiles missing)
+            var mMiss = Regex.Match(e, @"(\d+)\s*%.*?(tiles?|holes?|gaps?).*?missing?");
             if (mMiss.Success) s.missingPct = Mathf.Clamp01(int.Parse(mMiss.Groups[1].Value) / 100f);
 
-            // random bends up to 30 degrees either way
-            var mBend = Regex.Match(e, @"random\s+bends?.*?(\d+(?:\.\d+)?)\s*deg");
+            // random bends up to N deg/degree/degrees (either way optional)
+            var mBend = Regex.Match(e, @"random\s+bends?.*?(\d+(?:\.\d+)?)\s*(deg|degree|degrees)");
             if (mBend.Success) { s.randomBends = true; s.bendMaxDeg = float.Parse(mBend.Groups[1].Value); }
+            if (e.Contains("either way")) { /* informational, already symmetric */ }
 
-            // split track
-            if (e.Contains("split")) s.split = true;
+            // split / fork / branch
+            if (Regex.IsMatch(e, @"\b(split|fork|branch)\b")) s.split = true;
 
-            // slight ups and downs
-            if (e.Contains("slight up") || e.Contains("ups and down")) s.verticalAmp = 0.25f;
+            // slight ups and downs / hills
+            if (Regex.IsMatch(e, @"ups?\s*and\s*downs?") || e.Contains("hills") || e.Contains("slight up"))
+                s.verticalAmp = Mathf.Max(s.verticalAmp, 0.25f);
 
-            // low speed to start / first level = gentler
-            if (e.Contains("low speed") || e.Contains("first level")) s.lowSpeedStart = true;
+            // low speed to start / first level → gentler opening
+            if (e.Contains("low speed") || e.Contains("first level") || e.Contains("tutorial"))
+                s.lowSpeedStart = true;
 
-            // reasonable defaults
-            if (!s.randomBends) { s.randomBends = true; s.bendMaxDeg = 10f; } // gentle if not specified
+            // optional seed
+            var mSeed = Regex.Match(e, @"seed\s+(\d+)");
+            if (mSeed.Success) s.seed = int.Parse(mSeed.Groups[1].Value);
 
+            // Defaults if not specified
+            if (!s.randomBends) { s.randomBends = true; s.bendMaxDeg = 10f; }
             return s;
         }
+
 
         // ---------- Existing row-wise ops remain (used by other commands) ----------
         public static void DeleteRowsRange(int start, int end)
