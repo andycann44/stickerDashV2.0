@@ -1,92 +1,108 @@
 #if UNITY_EDITOR
-using UnityEditor; using UnityEngine;
-using System; using System.IO; using System.Text.RegularExpressions;
+using System;
+using UnityEditor;
+using UnityEngine;
 
-namespace Aim2Pro.AIGG.Track {
-  public class TrackGenV2Window : EditorWindow {
-    string nl = "build 250 by 6 with random tiles missing 12% and row gaps for jumps 2, a couple of s bend curves, random slopes on the straights";
-    string canonical = ""; Vector2 scroll;
+namespace Aim2Pro.AIGG {
+    public class TrackGenV2Window : EditorWindow {
+        // BUILD
+        string _nl = "build 300 by 6\nprotect start 10 end 10\nrandom holes 10%";
+        string _preview = "";
+        Vector2 _scrollBuild, _scrollPreview;
 
-    [MenuItem("Window/Aim2Pro/Track Creator/Track Gen V2")]
-    public static void Open(){ GetWindow<TrackGenV2Window>("Track Gen V2"); }
+        // AMEND
+        string _amend = "remove rows 15 to 18";
+        string _amendPreview = "";
+        Vector2 _scrollAmend, _scrollAmendPrev;
 
-    void OnGUI(){
-      GUILayout.Label("Natural Language", EditorStyles.boldLabel);
-      nl = EditorGUILayout.TextArea(nl, GUILayout.MinHeight(60));
-      if(GUILayout.Button("Parse → Canonical (meters default)")){
-        canonical = ParseToCanonical(nl);
-        SaveCanonical(canonical);
-        ShowNotification(new GUIContent("Saved → StickerDash_Status/LastCanonical.plan"));
-      }
-      GUILayout.Space(6);
-      GUILayout.Label("Canonical Preview", EditorStyles.boldLabel);
-      scroll = EditorGUILayout.BeginScrollView(scroll, GUILayout.MinHeight(120));
-      EditorGUILayout.TextArea(canonical, GUILayout.ExpandHeight(true));
-      EditorGUILayout.EndScrollView();
-      GUILayout.Space(6);
-      if(GUILayout.Button("Rebuild Track (Run Last Canonical)")){
-        CanonicalRunner.RunLast();
-      }
+        [MenuItem("Window/Aim2Pro/Track Creator/Track Gen V2")]
+        public static void Open(){
+            var w = GetWindow<TrackGenV2Window>("Track Gen V2");
+            w.minSize = new Vector2(780, 560);
+        }
+
+        void OnGUI(){
+            // ===== BUILD =====
+            GUILayout.Label("Natural Language (Build)", EditorStyles.boldLabel);
+            _scrollBuild = EditorGUILayout.BeginScrollView(_scrollBuild);
+            _nl = EditorGUILayout.TextArea(_nl ?? "", GUILayout.MinHeight(80));
+            EditorGUILayout.EndScrollView();
+
+            using (new EditorGUILayout.HorizontalScope()){
+                if (GUILayout.Button("Parse -> Canonical", GUILayout.Height(24))){
+                    try{
+                        var canon = NLEngine.ParseNL(_nl ?? "");
+                        _preview = (canon ?? "").Replace("\r\n","\n");
+                        PlanIO.Overwrite(_preview);
+                    } catch (Exception ex){ Debug.LogException(ex); }
+                }
+                if (GUILayout.Button("Build & Run", GUILayout.Height(24))){
+                    try{
+                        var canon = NLEngine.ParseNL(_nl ?? "");
+                        _preview = (canon ?? "").Replace("\r\n","\n");
+                        PlanIO.Overwrite(_preview);
+                        RunLast();
+                    } catch (Exception ex){ Debug.LogException(ex); }
+                }
+                if (GUILayout.Button("Rebuild Track (Run Last Canonical)", GUILayout.Height(24))){
+                    RunLast();
+                }
+                if (GUILayout.Button("Reveal Plan", GUILayout.Height(24))){
+                    PlanIO.Reveal();
+                }
+            }
+
+            GUILayout.Space(6);
+            GUILayout.Label("Canonical Preview", EditorStyles.boldLabel);
+            _scrollPreview = EditorGUILayout.BeginScrollView(_scrollPreview, GUILayout.MinHeight(140));
+            EditorGUI.BeginDisabledGroup(true);
+            EditorGUILayout.TextArea(_preview ?? "", GUILayout.ExpandHeight(true));
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndScrollView();
+
+            // ===== AMEND =====
+            GUILayout.Space(10);
+            GUILayout.Label("Amend Current Track via NL", EditorStyles.boldLabel);
+            _scrollAmend = EditorGUILayout.BeginScrollView(_scrollAmend);
+            _amend = EditorGUILayout.TextArea(_amend ?? "", GUILayout.MinHeight(60));
+            EditorGUILayout.EndScrollView();
+
+            using (new EditorGUILayout.HorizontalScope()){
+                if (GUILayout.Button("Preview Amend", GUILayout.Height(22))){
+                    try{
+                        var canon = NLEngine.ParseNL(_amend ?? "");
+                        _amendPreview = (canon ?? "").Replace("\r\n","\n");
+                    } catch (Exception ex){ Debug.LogException(ex); }
+                }
+                if (GUILayout.Button("Append To Plan", GUILayout.Height(22))){
+                    try{
+                        PlanIO.Append(NLEngine.ParseNL(_amend ?? ""));
+                    } catch (Exception ex){ Debug.LogException(ex); }
+                }
+                if (GUILayout.Button("Append & Run", GUILayout.Height(22))){
+                    try{
+                        PlanIO.Append(NLEngine.ParseNL(_amend ?? ""));
+                        RunLast();
+                    } catch (Exception ex){ Debug.LogException(ex); }
+                }
+            }
+
+            if (!string.IsNullOrEmpty(_amendPreview)){
+                GUILayout.Space(4);
+                GUILayout.Label("Amend Canonical Preview", EditorStyles.miniBoldLabel);
+                _scrollAmendPrev = EditorGUILayout.BeginScrollView(_scrollAmendPrev, GUILayout.MinHeight(80));
+                EditorGUI.BeginDisabledGroup(true);
+                EditorGUILayout.TextArea(_amendPreview, GUILayout.ExpandHeight(true));
+                EditorGUI.EndDisabledGroup();
+                EditorGUILayout.EndScrollView();
+            }
+        }
+
+        static void RunLast(){
+            if (!EditorApplication.ExecuteMenuItem("Window/Aim2Pro/Track Creator/Run Last Canonical")){
+                Debug.LogWarning("[A2P] Could not trigger Run Last Canonical.");
+            }
+        }
     }
-
-    string ParseToCanonical(string text){
-      var s = text.ToLowerInvariant();
-      string can = "seed(12345)\n";
-
-      // build L by W (meters default)
-      var m = Regex.Match(s, @"\b(?:build|rebuild)\s+(\d+)\s*(?:m|meter|meters)?\s*by\s*(\d+)\s*(?:m|meter|meters)?");
-      if(m.Success) can += $"buildAbs({m.Groups[1].Value},{m.Groups[2].Value})\n";
-
-      // random tiles missing X%
-      m = Regex.Match(s, @"random\s+tiles\s+missing\s+(\d+)%");
-      if(m.Success) can += $"randomHoles({m.Groups[1].Value})\n";
-
-      // row gaps for jumps N
-      m = Regex.Match(s, @"row\s+gaps?\s+for\s+jumps?\s+(\d+)");
-      if(m.Success) can += $"insertJumpGaps({m.Groups[1].Value})\n";
-
-      // explicit curve rows a-b left/right deg
-      m = Regex.Match(s, @"curve\s+rows?\s+(\d+)\s*(?:-|to)\s*(\d+)\s+(left|right)\s+(\d+)\s*(?:deg|degree|degrees|°)?");
-      if(m.Success) can += $"curveRows({m.Groups[1].Value},{m.Groups[2].Value},{m.Groups[3].Value},{m.Groups[4].Value})\n";
-
-      // s-bend auto: phrases like "s bend", "s-bends", "a couple of s bend curves"
-      int sCount = 0;
-      var mc = Regex.Match(s, @"(\d+)\s*(?:s\s*-?bends?|s\s*bend\s*curves?)");
-      if(mc.Success) sCount = int.Parse(mc.Groups[1].Value);
-      if(sCount==0){
-        if(Regex.IsMatch(s, @"a\s+couple\s+of\s+s\s*-?bend")) sCount = 2;
-        else if(Regex.IsMatch(s, @"several\s+s\s*-?bend")) sCount = 3;
-        else if(Regex.IsMatch(s, @"s\s*-?bend")) sCount = 1;
-      }
-      if(sCount>0) can += $"sBendAuto({sCount},8)\n"; // default 8°
-
-      // random slopes on the straights (defaults)
-      if(Regex.IsMatch(s, @"random\s+slopes?\s+on\s+the\s+straights?")){
-        can += "slopesRandomAuto(2,8,10)\n"; // min 2°, max 8°, segments ~10 rows
-      }
-
-      // delete rows a-b
-      m = Regex.Match(s, @"remove\s+rows?\s+(\d+)\s*-\s*(\d+)");
-      if(m.Success) can += $"deleteRows({m.Groups[1].Value},{m.Groups[2].Value})\n";
-
-      // remove tiles "1,3,5 row 10"
-      m = Regex.Match(s, @"remove\s+tiles?\s+([\d,\s]+)\s+row\s+(\d+)");
-      if(m.Success) can += $"deleteTiles({m.Groups[1].Value}, row={m.Groups[2].Value})\n";
-
-      return can.Trim();
-    }
-
-    void SaveCanonical(string content){
-      var dir = "StickerDash_Status";
-      if(!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-      File.WriteAllText(Path.Combine(dir,"LastCanonical.plan"), content);
-    }
-  }
-
-  // Back-compat for old menu
-  public class TrackGeneratorWindow : EditorWindow {
-    [MenuItem("Window/Aim2Pro/Track Creator/Track Generator")]
-    public static void Open(){ TrackGenV2Window.Open(); }
-  }
 }
 #endif

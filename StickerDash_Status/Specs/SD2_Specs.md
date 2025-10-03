@@ -119,3 +119,9 @@ If your plan uses random ops and no `seed(...)`, a seed is auto-inserted and log
   - Quick Amend line: type e.g. `remove rows 15 to 15` → Apply & Run.
   - **Edit Panel:** Delete Rows / Delete Tiles / Curve Rows / Auto S-bends / Random Slopes / Insert Jump Gaps — each can **Append** to NL or **Run** immediately.
 - Uses existing canonical ops only (`deleteRows`, `deleteTiles`, `curveRows`, `sBendAuto`, `slopesRandomAuto`, `insertJumpGaps`) to avoid unsupported-command warnings.
+
+## Changelog 2025-10-03
+- **Track Gen V2 updated:** single window now supports:
+  - Build: *Parse -> Canonical*, *Build & Run*, *Rebuild*, *Reveal Plan*.
+  - Amend: *Preview Amend*, *Append To Plan*, *Append & Run* (appends to `StickerDash_Status/LastCanonical.plan`).
+- Added `PlanIO` helper to normalize newlines and safely overwrite/append the plan.

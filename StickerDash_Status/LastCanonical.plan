@@ -1,1 +1,3 @@
 seed(12345)
+buildAbs(300,6)
+sBendAuto(1,8)
