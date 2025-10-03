@@ -90,3 +90,12 @@ If your plan uses random ops and no `seed(...)`, a seed is auto-inserted and log
 - Added **NL Tester** window: Window → Aim2Pro → Track Creator → NL Tester.
 - Added **NL → Parse From File / Run From File / Open Cheat Sheet** menus.
 - Created **StickerDash_Status/NL_CheatSheet.md** with current NL commands and usage.
+
+
+## Changelog 2025-10-03
+- **PlanMacros updated:** safe margins are now preprocessed (no warnings).
+  - `safeMarginStart(N)` / `safeMarginEnd(N)` lines are **not** written to the final plan.
+  - Any `deleteRows(a,b)` is clipped to avoid the protected first/last rows.
+  - Any `deleteTiles(..., row=R)` on protected rows is dropped.
+  - `smoothHeights(...)` and legacy `smoothColumns()` are **silently dropped** (placeholder until real smoother op exists).
+- **Limit:** Random-wide ops (e.g., `randomHoles`) still affect protected rows (generator limitation). Use explicit deletes + margins when you need hard-safe ends.
