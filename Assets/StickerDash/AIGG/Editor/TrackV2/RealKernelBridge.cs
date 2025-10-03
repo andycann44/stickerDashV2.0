@@ -7,152 +7,252 @@ using System.Text.RegularExpressions;
 
 namespace Aim2Pro.AIGG
 {
-    /// <summary>
-    /// Real kernel bridge for Track Gen v2 using tile children named: tile_r{row}_c{col}
-    /// Parent is typically "A2P_Track".
-    /// Forward axis assumed +Z (meters).
-    /// </summary>
+    /// Works with parent "A2P_Track" (or "Track") and child tiles named: tile_r{row}_c{col}
     public static class Kernel
     {
         private static readonly Regex TileRx = new Regex(@"^tile_r(?<r>\d+)_c(?<c>\d+)$", RegexOptions.IgnoreCase);
 
+        // ---------- TRACK ROOT / TILES ----------
+        private static Transform FindOrCreateTrack()
+        {
+            var go = GameObject.Find("A2P_Track") ?? GameObject.Find("Track");
+            if (!go) { go = new GameObject("A2P_Track"); Undo.RegisterCreatedObjectUndo(go, "Create Track Root"); }
+            return go.transform;
+        }
         private static Transform FindTrack()
         {
-            // 1) Preferred names
-            var go = GameObject.Find("A2P_Track") ?? GameObject.Find("Track");
-            if (go) return go.transform;
-
-            // 2) Tag
-            try { var tagged = GameObject.FindGameObjectWithTag("Track"); if (tagged) return tagged.transform; } catch {}
-
-            // 3) Heuristic: any root with many tile_r?_c? children
-            foreach (var root in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
+            return GameObject.Find("A2P_Track")?.transform ?? GameObject.Find("Track")?.transform;
+        }
+        private static GameObject GetAnyTileTemplate(Transform root)
+        {
+            if (root)
             {
-                var t = root.transform;
-                int matches = 0;
-                foreach (Transform c in t)
-                    if (TileRx.IsMatch(c.name)) { matches++; if (matches >= 3) return t; }
+                foreach (Transform c in root)
+                    if (TileRx.IsMatch(c.name)) return c.gameObject;
             }
-
-            Debug.LogWarning("[Kernel] Track root not found (looked for 'A2P_Track' / 'Track' / tag 'Track').");
-            return null;
+            // fallback cube (1x0.2x1)
+            var g = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            g.name = "tile_template";
+            g.transform.localScale = new Vector3(1f, 0.2f, 1f);
+            Undo.RegisterCreatedObjectUndo(g, "Create Tile Template");
+            return g;
+        }
+        private static void ClearExistingTiles(Transform root)
+        {
+            var toDelete = new List<GameObject>();
+            foreach (Transform c in root)
+                if (TileRx.IsMatch(c.name)) toDelete.Add(c.gameObject);
+            if (toDelete.Count == 0) return;
+            Undo.RegisterFullObjectHierarchyUndo(root.gameObject, "Clear Tiles");
+            foreach (var g in toDelete) Object.DestroyImmediate(g);
         }
 
+        // ---------- ROW HELPERS ----------
         private static Dictionary<int, List<Transform>> GetRowGroups(Transform trackRoot)
         {
             var rows = new Dictionary<int, List<Transform>>();
             if (!trackRoot) return rows;
-
             foreach (Transform c in trackRoot)
             {
                 var m = TileRx.Match(c.name);
                 if (!m.Success) continue;
                 int r = int.Parse(m.Groups["r"].Value);
-                if (!rows.TryGetValue(r, out var list)) rows[r] = list = new List<Transform>();
-                list.Add(c);
+                (rows.TryGetValue(r, out var list) ? list : (rows[r] = new List<Transform>())).Add(c);
             }
             return rows;
         }
-
         private static bool TryParseRC(string name, out int r, out int c)
         {
             var m = TileRx.Match(name);
-            if (m.Success)
-            {
-                r = int.Parse(m.Groups["r"].Value);
-                c = int.Parse(m.Groups["c"].Value);
-                return true;
-            }
+            if (m.Success) { r = int.Parse(m.Groups["r"].Value); c = int.Parse(m.Groups["c"].Value); return true; }
             r = c = 0; return false;
         }
+        private static Vector3 RowCentroid(List<Transform> tiles)
+        {
+            if (tiles == null || tiles.Count == 0) return Vector3.zero;
+            Vector3 sum = Vector3.zero; foreach (var t in tiles) sum += t.position; return sum / tiles.Count;
+        }
+        private static float GuessRowStep(Dictionary<int,List<Transform>> rows, int lastRow)
+        {
+            if (rows.TryGetValue(lastRow, out var b) && rows.TryGetValue(lastRow-1, out var a))
+            {
+                var da = Vector3.Distance(RowCentroid(a), RowCentroid(b));
+                if (da > 0.01f) return da;
+            }
+            return 1f;
+        }
 
-        // --------- Ops ----------
+        // ---------- SCENARIO ----------
+        private class Scenario
+        {
+            public float lengthM, widthM;
+            public float missingPct;                 // 0..1
+            public float bendMaxDeg;                // random +/- per bend
+            public bool randomBends;
+            public bool split;
+            public float verticalAmp;               // meters
+            public bool lowSpeedStart;
+            public int seed = 12345;
+        }
 
+        public static void GenerateScenarioFromPrompt(float lengthM, float widthM, string extras = "")
+        {
+            var root = FindOrCreateTrack();
+            var opt = ParseExtras(lengthM, widthM, extras ?? "");
+            var template = GetAnyTileTemplate(root);
+
+            // build rows procedurally from scratch
+            ClearExistingTiles(root);
+            Undo.RegisterFullObjectHierarchyUndo(root.gameObject, "Generate Scenario");
+
+            int cols = Mathf.Max(1, Mathf.RoundToInt(opt.widthM));          // 1 tile ~= 1m wide
+            int rows = Mathf.Max(1, Mathf.RoundToInt(opt.lengthM));         // 1 tile per 1m forward
+            float half = (cols - 1) * 0.5f;
+
+            var rng = new System.Random(opt.seed);
+            float yawDeg = 0f;
+            int bendEvery = 12; // rows between potential bends
+
+            // optional branch (split) begins around 1/3 into the track
+            int splitStart = opt.split ? rows / 3 : int.MaxValue;
+            int splitLen   = opt.split ? Mathf.Min(60, rows / 3) : 0;
+            float splitOffsetX = cols + 1f; // shift the branch to the side
+
+            for (int r = 1; r <= rows; r++)
+            {
+                // adjust bend
+                if (opt.randomBends && r % bendEvery == 0)
+                {
+                    float limit = opt.bendMaxDeg;
+                    if (opt.lowSpeedStart && r < rows * 0.2f) limit *= 0.4f; // gentler early
+                    yawDeg += (float)((rng.NextDouble() * 2.0 - 1.0) * limit);
+                }
+
+                // vertical variation
+                float yRow = opt.verticalAmp > 0f ? Mathf.Sin(r * Mathf.PI / 50f) * opt.verticalAmp : 0f;
+
+                // basis at this row
+                Quaternion rot = Quaternion.Euler(0f, yawDeg, 0f);
+                Vector3 forward = rot * Vector3.forward;
+                Vector3 right   = rot * Vector3.right;
+                Vector3 center  = right * 0f + forward * (r - 1) + new Vector3(0f, yRow, 0f);
+
+                // place main row
+                for (int c = 0; c < cols; c++)
+                {
+                    if (opt.missingPct > 0f && rng.NextDouble() < opt.missingPct) continue;
+
+                    var g = Object.Instantiate(template, root);
+                    g.name = $"tile_r{r}_c{c}";
+                    g.transform.position = center + right * (c - half);
+                    g.transform.rotation = rot;
+                    g.transform.localScale = template.transform.localScale;
+                    EditorUtility.SetDirty(g);
+                }
+
+                // split branch
+                if (r >= splitStart && r < splitStart + splitLen)
+                {
+                    for (int c = 0; c < cols; c++)
+                    {
+                        if (opt.missingPct > 0f && rng.NextDouble() < opt.missingPct) continue;
+
+                        var g = Object.Instantiate(template, root);
+                        g.name = $"tile_r{r}_c{c}";
+                        g.transform.position = center + right * (c - half + splitOffsetX);
+                        g.transform.rotation = rot;
+                        g.transform.localScale = template.transform.localScale;
+                        EditorUtility.SetDirty(g);
+                    }
+                }
+            }
+
+            // cleanup template if we created it just now
+            if (template.name == "tile_template")
+                Object.DestroyImmediate(template);
+
+            EditorUtility.SetDirty(root);
+            Debug.Log($"[Kernel] Scenario: {rows} rows × {cols} cols, bends:{opt.randomBends} ±{opt.bendMaxDeg}°, split:{opt.split}, missing:{opt.missingPct:P0}, verticalAmp:{opt.verticalAmp}m");
+        }
+
+        private static Scenario ParseExtras(float lengthM, float widthM, string extras)
+        {
+            var s = new Scenario { lengthM = lengthM, widthM = widthM };
+            var e = (extras ?? "").ToLowerInvariant();
+
+            // 10% tiles missing
+            var mMiss = Regex.Match(e, @"(\d+)\s*%[^,]*tiles?\s*missing");
+            if (mMiss.Success) s.missingPct = Mathf.Clamp01(int.Parse(mMiss.Groups[1].Value) / 100f);
+
+            // random bends up to 30 degrees either way
+            var mBend = Regex.Match(e, @"random\s+bends?.*?(\d+(?:\.\d+)?)\s*deg");
+            if (mBend.Success) { s.randomBends = true; s.bendMaxDeg = float.Parse(mBend.Groups[1].Value); }
+
+            // split track
+            if (e.Contains("split")) s.split = true;
+
+            // slight ups and downs
+            if (e.Contains("slight up") || e.Contains("ups and down")) s.verticalAmp = 0.25f;
+
+            // low speed to start / first level = gentler
+            if (e.Contains("low speed") || e.Contains("first level")) s.lowSpeedStart = true;
+
+            // reasonable defaults
+            if (!s.randomBends) { s.randomBends = true; s.bendMaxDeg = 10f; } // gentle if not specified
+
+            return s;
+        }
+
+        // ---------- Existing row-wise ops remain (used by other commands) ----------
         public static void DeleteRowsRange(int start, int end)
         {
             var root = FindTrack(); if (!root) return;
             var rows = GetRowGroups(root);
             Undo.RegisterFullObjectHierarchyUndo(root.gameObject, "DeleteRowsRange");
-            for (int r = start; r <= end; r++)
-            {
-                if (!rows.TryGetValue(r, out var tiles)) continue;
-                foreach (var t in tiles) Object.DestroyImmediate(t.gameObject);
-            }
+            for (int r = start; r <= end; r++) if (rows.TryGetValue(r, out var tiles)) foreach (var t in tiles) Object.DestroyImmediate(t.gameObject);
             EditorUtility.SetDirty(root);
         }
-
         public static void OffsetRowsX(int start, int end, float meters)
         {
             var root = FindTrack(); if (!root) return;
             var rows = GetRowGroups(root);
             Undo.RegisterFullObjectHierarchyUndo(root.gameObject, "OffsetRowsX");
-            for (int r = start; r <= end; r++)
-            {
-                if (!rows.TryGetValue(r, out var tiles)) continue;
-                foreach (var t in tiles)
-                {
-                    t.position += new Vector3(meters, 0f, 0f);
-                    EditorUtility.SetDirty(t.gameObject);
-                }
-            }
+            for (int r = start; r <= end; r++) if (rows.TryGetValue(r, out var tiles)) foreach (var t in tiles) { t.position += new Vector3(meters,0,0); EditorUtility.SetDirty(t.gameObject); }
         }
-
         public static void OffsetRowsY(int start, int end, float meters)
         {
             var root = FindTrack(); if (!root) return;
             var rows = GetRowGroups(root);
             Undo.RegisterFullObjectHierarchyUndo(root.gameObject, "OffsetRowsY");
-            for (int r = start; r <= end; r++)
-            {
-                if (!rows.TryGetValue(r, out var tiles)) continue;
-                foreach (var t in tiles)
-                {
-                    t.position += new Vector3(0f, meters, 0f);
-                    EditorUtility.SetDirty(t.gameObject);
-                }
-            }
+            for (int r = start; r <= end; r++) if (rows.TryGetValue(r, out var tiles)) foreach (var t in tiles) { t.position += new Vector3(0,meters,0); EditorUtility.SetDirty(t.gameObject); }
         }
-
         public static void StraightenRows(int start, int end)
         {
             var root = FindTrack(); if (!root) return;
             var rows = GetRowGroups(root);
             Undo.RegisterFullObjectHierarchyUndo(root.gameObject, "StraightenRows");
-            for (int r = start; r <= end; r++)
-            {
-                if (!rows.TryGetValue(r, out var tiles)) continue;
-                foreach (var t in tiles)
-                {
-                    t.rotation = Quaternion.identity;
-                    EditorUtility.SetDirty(t.gameObject);
-                }
-            }
+            for (int r = start; r <= end; r++) if (rows.TryGetValue(r, out var tiles)) foreach (var t in tiles) { t.rotation = Quaternion.identity; EditorUtility.SetDirty(t.gameObject); }
         }
-
         public static void AppendStraight(float distance, float step = 1f)
         {
             var root = FindTrack(); if (!root) return;
             var rows = GetRowGroups(root);
             if (rows.Count == 0) { Debug.LogWarning("[Kernel] No tiles named tile_r*_c* under track root."); return; }
-
             int lastRow = rows.Keys.Max();
-            var lastTiles = rows[lastRow];
-            if (lastTiles == null || lastTiles.Count == 0) { Debug.LogWarning("[Kernel] Last row empty."); return; }
-
+            var lastTiles = rows[lastRow]; if (lastTiles == null || lastTiles.Count == 0) { Debug.LogWarning("[Kernel] Last row empty."); return; }
+            int cols = lastTiles.Count; float half = (cols - 1) * 0.5f;
             int copies = Mathf.Max(1, Mathf.RoundToInt(distance / Mathf.Max(0.0001f, step)));
-            float dz = step; // forward is +Z
-
+            float dz = step;
             Undo.RegisterFullObjectHierarchyUndo(root.gameObject, "AppendStraight");
             for (int i = 1; i <= copies; i++)
             {
                 foreach (var src in lastTiles)
                 {
-                    if (!TryParseRC(src.name, out var _, out var col)) continue;
+                    if (!TryParseRC(src.name, out _, out var col)) continue;
                     var clone = Object.Instantiate(src.gameObject, src.parent);
                     int newRow = lastRow + i;
                     clone.name = $"tile_r{newRow}_c{col}";
-                    var p = src.position + new Vector3(0f, 0f, dz * i);
-                    clone.transform.position = p;
+                    clone.transform.position = src.position + new Vector3(0f, 0f, dz * i);
                     clone.transform.rotation = src.rotation;
                     clone.transform.localScale = src.localScale;
                     EditorUtility.SetDirty(clone);
@@ -160,14 +260,52 @@ namespace Aim2Pro.AIGG
             }
             EditorUtility.SetDirty(root);
         }
-
-        // Stubs we’ll fill later
         public static void AppendArc(string side, float deg, float arcLen = 0f, int steps = 0)
-            => Debug.Log($"[Kernel] AppendArc(side:{side},deg:{deg}) — TODO");
+        {
+            var root = FindTrack(); if (!root) return;
+            var rows = GetRowGroups(root);
+            if (rows.Count == 0) { Debug.LogWarning("[Kernel] No tiles to arc."); return; }
+            int lastRow = rows.Keys.Max();
+            if (!rows.TryGetValue(lastRow, out var lastTiles) || lastTiles.Count == 0) { Debug.LogWarning("[Kernel] Last row empty."); return; }
 
+            float theta = Mathf.Abs(deg) * Mathf.Deg2Rad;
+            if (theta < 1e-5f) { Debug.LogWarning("[Kernel] AppendArc: deg too small."); return; }
+            float stepGuess = GuessRowStep(rows, lastRow);
+            if (steps <= 0) { if (arcLen > 0f) steps = Mathf.Max(1, Mathf.RoundToInt(arcLen / stepGuess)); else steps = Mathf.Max(1, Mathf.RoundToInt(Mathf.Abs(deg))); }
+            if (arcLen <= 0f) arcLen = steps * stepGuess;
+
+            float radius = arcLen / theta;
+            float sign = side.ToLowerInvariant() == "left" ? +1f : -1f;
+            Vector3 centroid = RowCentroid(lastTiles);
+            Vector3 pivot = centroid + (sign > 0 ? Vector3.left : Vector3.right) * radius;
+
+            Undo.RegisterFullObjectHierarchyUndo(root.gameObject, "AppendArc");
+            float angleStep = sign * (theta / steps); // radians
+
+            for (int i = 1; i <= steps; i++)
+            {
+                float ang = angleStep * i;
+                int newRow = lastRow + i;
+
+                foreach (var src in lastTiles)
+                {
+                    if (!TryParseRC(src.name, out _, out var col)) continue;
+
+                    var clone = Object.Instantiate(src.gameObject, src.parent);
+                    clone.name = $"tile_r{newRow}_c{col}";
+
+                    Vector3 offset = src.position - pivot;
+                    Quaternion rot = Quaternion.Euler(0f, ang * Mathf.Rad2Deg, 0f);
+                    clone.transform.position = pivot + rot * offset;
+                    clone.transform.rotation = rot * src.rotation;
+                    clone.transform.localScale = src.localScale;
+                    EditorUtility.SetDirty(clone);
+                }
+            }
+            EditorUtility.SetDirty(root);
+        }
         public static void BuildSplineFromTrack(float width = 3f, float top = 0f, float thickness = 0.2f, bool replace = false)
             => Debug.Log("[Kernel] BuildSplineFromTrack — TODO");
-
         public static void SetWidth(float width) => Debug.Log($"[Kernel] SetWidth({width})");
         public static void SetThickness(float thickness) => Debug.Log($"[Kernel] SetThickness({thickness})");
         public static void Resample(float density) => Debug.Log($"[Kernel] Resample({density})");
