@@ -8,24 +8,29 @@ namespace Aim2Pro.AIGG.TrackV2
 {
     public static class KernelInvokerV2
     {
-        private static Type _targetType; 
+        private static Type _targetType;
         private static bool _resolved;
 
         public static void Call(string fn, object[] args)
         {
             var t = ResolveTargetType();
-            Debug.Log($"[TrackV2] Invoking {fn} on {(t!=null?t.FullName:\"<stub>\")} with {args?.Length ?? 0} arg(s)");
+            Debug.Log($"[TrackV2] Invoking {fn} on {(t != null ? t.FullName : "<stub>")} with {(args?.Length ?? 0)} arg(s)");
+
             if (t == null)
             {
                 Debug.LogWarning("[TrackV2] No real kernel type discovered. Using stub logger.");
-                InvokeOn(typeof(StubKernel), fn, args, allowOptional:true);
+                InvokeOn(typeof(StubKernel), fn, args, allowOptional: true);
                 return;
             }
-            try { InvokeOn(t, fn, args, allowOptional:true); }
+
+            try
+            {
+                InvokeOn(t, fn, args, allowOptional: true);
+            }
             catch (MissingMethodException)
             {
                 Debug.LogWarning($"[TrackV2] Real kernel missing '{fn}({args?.Length ?? 0} args)'. Using stub.");
-                InvokeOn(typeof(StubKernel), fn, args, allowOptional:true);
+                InvokeOn(typeof(StubKernel), fn, args, allowOptional: true);
             }
         }
 
@@ -36,21 +41,34 @@ namespace Aim2Pro.AIGG.TrackV2
 
             // 1) Exact full name across all assemblies
             _targetType = FindTypeInAllAssemblies("Aim2Pro.AIGG.Kernel");
-            if (IsGood(_targetType)) { Debug.Log($"[TrackV2] Using real kernel (full-name): {_targetType.FullName}"); return _targetType; }
+            if (IsGood(_targetType))
+            {
+                Debug.Log($"[TrackV2] Using real kernel (full-name): {_targetType.FullName}");
+                return _targetType;
+            }
 
             // 2) Any type named 'Kernel' inside Aim2Pro.AIGG
             _targetType = AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(SafeGetTypes)
                 .FirstOrDefault(t => t.IsClass && t.Namespace == "Aim2Pro.AIGG" && t.Name == "Kernel");
-            if (IsGood(_targetType)) { Debug.Log($"[TrackV2] Using real kernel (ns scan): {_targetType.FullName}"); return _targetType; }
+            if (IsGood(_targetType))
+            {
+                Debug.Log($"[TrackV2] Using real kernel (ns scan): {_targetType.FullName}");
+                return _targetType;
+            }
 
             // 3) Fallback: any type with key methods
-            string[] mustHave = { "AppendStraight","AppendArc","DeleteRowsRange","OffsetRowsX","OffsetRowsY","StraightenRows" };
+            string[] mustHave = { "AppendStraight", "AppendArc", "DeleteRowsRange", "OffsetRowsX", "OffsetRowsY", "StraightenRows" };
             foreach (var t in AppDomain.CurrentDomain.GetAssemblies().SelectMany(SafeGetTypes))
             {
                 if (!t.IsClass) continue;
-                var names = t.GetMethods(BindingFlags.Public | BindingFlags.Static).Select(m=>m.Name).ToHashSet();
-                if (mustHave.Any(n => names.Contains(n))) { _targetType = t; Debug.Log($"[TrackV2] Using real kernel (discovered): {_targetType.FullName}"); return _targetType; }
+                var names = t.GetMethods(BindingFlags.Public | BindingFlags.Static).Select(m => m.Name).ToHashSet();
+                if (mustHave.Any(n => names.Contains(n)))
+                {
+                    _targetType = t;
+                    Debug.Log($"[TrackV2] Using real kernel (discovered): {_targetType.FullName}");
+                    return _targetType;
+                }
             }
 
             _targetType = null;
@@ -61,7 +79,7 @@ namespace Aim2Pro.AIGG.TrackV2
         {
             foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
             {
-                try { var t = asm.GetType(fullName, false); if (t != null) return t; } catch {}
+                try { var t = asm.GetType(fullName, false); if (t != null) return t; } catch { }
             }
             return null;
         }
@@ -78,11 +96,13 @@ namespace Aim2Pro.AIGG.TrackV2
         {
             var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Static).Where(m => m.Name == fn);
             MethodInfo match = null; object[] finalArgs = null;
+
             foreach (var m in methods)
             {
                 var ps = m.GetParameters();
                 int provided = args?.Length ?? 0;
                 if (ps.Length < provided) continue;
+
                 bool extrasOptional = true;
                 for (int i = provided; i < ps.Length; i++) if (!ps[i].IsOptional) { extrasOptional = false; break; }
                 if (!extrasOptional && allowOptional) continue;
@@ -92,7 +112,10 @@ namespace Aim2Pro.AIGG.TrackV2
                 for (int i = provided; i < ps.Length; i++) finalArgs[i] = Type.Missing;
                 match = m; break;
             }
-            if (match == null) throw new MissingMethodException($"Kernel fn {fn} with {(args?.Length ?? 0)} args not found in {type.FullName}.");
+
+            if (match == null)
+                throw new MissingMethodException($"Kernel fn {fn} with {(args?.Length ?? 0)} args not found in {type.FullName}.");
+
             match.Invoke(null, finalArgs);
         }
 
@@ -106,7 +129,8 @@ namespace Aim2Pro.AIGG.TrackV2
                 if (targetType == typeof(double)) return Convert.ToDouble(value);
                 if (targetType == typeof(int)) return Convert.ToInt32(value);
                 if (targetType.IsEnum) return Enum.Parse(targetType, value.ToString(), true);
-            } catch {}
+            }
+            catch { }
             return value;
         }
 
