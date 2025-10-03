@@ -84,3 +84,9 @@ If your plan uses random ops and no `seed(...)`, a seed is auto-inserted and log
 
 ## Changelog 2025-10-02
 - Fixed PlanMacros to avoid char literal \\n; now uses StringReader for line iteration (more robust on all platforms).
+
+
+## Changelog 2025-10-03
+- Added **NL Tester** window: Window → Aim2Pro → Track Creator → NL Tester.
+- Added **NL → Parse From File / Run From File / Open Cheat Sheet** menus.
+- Created **StickerDash_Status/NL_CheatSheet.md** with current NL commands and usage.
