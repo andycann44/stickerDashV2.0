@@ -30,7 +30,7 @@ namespace Aim2Pro.AIGG
                 foreach (Transform c in root)
                     if (TileRx.IsMatch(c.name)) return c.gameObject;
             }
-            // fallback cube (1x0.2x1)
+            // fallback cube (1x0.2x1) if no tiles exist yet
             var g = GameObject.CreatePrimitive(PrimitiveType.Cube);
             g.name = "tile_template";
             g.transform.localScale = new Vector3(1f, 0.2f, 1f);
@@ -101,65 +101,69 @@ namespace Aim2Pro.AIGG
             var opt = ParseExtras(lengthM, widthM, extras ?? "");
             var template = GetAnyTileTemplate(root);
 
-            // build rows procedurally from scratch
+            // compute exact pitches to match requested meters
+            int rows = Mathf.Max(2, Mathf.RoundToInt(opt.lengthM));     // integer rows, >=2 so pitch well-defined
+            int cols = Mathf.Max(2, Mathf.RoundToInt(opt.widthM));
+            float rowPitch = opt.lengthM / (rows - 1);                  // meters between row centroids
+            float colPitch = opt.widthM / (cols - 1);                   // meters between columns
+            float halfCols = (cols - 1) * 0.5f;
+
+            // split section: ~20% of the track, starting at 1/3
+            int splitStart = opt.split ? Mathf.RoundToInt(rows * 0.33f) : int.MaxValue;
+            int splitLen   = opt.split ? Mathf.RoundToInt(rows * 0.20f) : 0;
+            float splitOffsetX = opt.widthM + colPitch;                  // a full extra width to the side
+
+            // RNG + bend cadence
+            var rng = new System.Random(opt.seed);
+            float yawDeg = 0f;
+            int bendEvery = 12;
+
+            // clear previous tiles
             ClearExistingTiles(root);
             Undo.RegisterFullObjectHierarchyUndo(root.gameObject, "Generate Scenario");
 
-            int cols = Mathf.Max(1, Mathf.RoundToInt(opt.widthM));          // 1 tile ~= 1m wide
-            int rows = Mathf.Max(1, Mathf.RoundToInt(opt.lengthM));         // 1 tile per 1m forward
-            float half = (cols - 1) * 0.5f;
-
-            var rng = new System.Random(opt.seed);
-            float yawDeg = 0f;
-            int bendEvery = 12; // rows between potential bends
-
-            // optional branch (split) begins around 1/3 into the track
-            int splitStart = opt.split ? rows / 3 : int.MaxValue;
-            int splitLen   = opt.split ? Mathf.Min(60, rows / 3) : 0;
-            float splitOffsetX = cols + 1f; // shift the branch to the side
-
             for (int r = 1; r <= rows; r++)
             {
-                // adjust bend
+                // heading changes
                 if (opt.randomBends && r % bendEvery == 0)
                 {
                     float limit = opt.bendMaxDeg;
-                    if (opt.lowSpeedStart && r < rows * 0.2f) limit *= 0.4f; // gentler early
-                    yawDeg += (float)((rng.NextDouble() * 2.0 - 1.0) * limit);
+                    if (opt.lowSpeedStart && r < rows * 0.2f) limit *= 0.4f; // gentler first 20%
+                    yawDeg += (float)((rng.NextDouble() * 2.0 - 1.0) * limit); // +/- limit
                 }
 
                 // vertical variation
                 float yRow = opt.verticalAmp > 0f ? Mathf.Sin(r * Mathf.PI / 50f) * opt.verticalAmp : 0f;
 
-                // basis at this row
+                // local frame at this row
                 Quaternion rot = Quaternion.Euler(0f, yawDeg, 0f);
                 Vector3 forward = rot * Vector3.forward;
                 Vector3 right   = rot * Vector3.right;
-                Vector3 center  = right * 0f + forward * (r - 1) + new Vector3(0f, yRow, 0f);
+                Vector3 center  = forward * ((r - 1) * rowPitch) + new Vector3(0f, yRow, 0f);
 
-                // place main row
+                // place mainline tiles
                 for (int c = 0; c < cols; c++)
                 {
                     if (opt.missingPct > 0f && rng.NextDouble() < opt.missingPct) continue;
-
                     var g = Object.Instantiate(template, root);
                     g.name = $"tile_r{r}_c{c}";
-                    g.transform.position = center + right * (c - half);
+                    g.transform.position = center + right * ((c - halfCols) * colPitch);
                     g.transform.rotation = rot;
                     g.transform.localScale = template.transform.localScale;
                     EditorUtility.SetDirty(g);
                 }
 
-                // split branch
+                // place split branch tiles (slightly fewer holes so analyzer sees it)
                 if (r >= splitStart && r < splitStart + splitLen)
                 {
                     for (int c = 0; c < cols; c++)
                     {
-                        if (opt.missingPct > 0f && rng.NextDouble() < opt.missingPct) continue;
+                        double miss = Mathf.Clamp01(opt.missingPct - 0.05f); // branch is a bit denser
+                        if (miss > 0 && rng.NextDouble() < miss) continue;
 
                         var g = Object.Instantiate(template, root);
                         g.name = $"tile_r{r}_c{c}";
-                        g.transform.position = center + right * (c - half + splitOffsetX);
+                        g.transform.position = center + right * ((c - halfCols) * colPitch + splitOffsetX);
                         g.transform.rotation = rot;
                         g.transform.localScale = template.transform.localScale;
                         EditorUtility.SetDirty(g);
@@ -167,15 +171,13 @@ namespace Aim2Pro.AIGG
                 }
             }
 
-            // cleanup template if we created it just now
             if (template.name == "tile_template")
                 Object.DestroyImmediate(template);
 
             EditorUtility.SetDirty(root);
-            Debug.Log($"[Kernel] Scenario: {rows} rows × {cols} cols, bends:{opt.randomBends} ±{opt.bendMaxDeg}°, split:{opt.split}, missing:{opt.missingPct:P0}, verticalAmp:{opt.verticalAmp}m");
+            Debug.Log($"[Kernel] Scenario: rows={rows}, cols={cols}, rowPitch={rowPitch:F3}m, colPitch={colPitch:F3}m, splitRows={splitLen}, holes~{opt.missingPct:P0}, bends±{opt.bendMaxDeg}°");
         }
 
-        
         private static Scenario ParseExtras(float lengthM, float widthM, string extras)
         {
             var s = new Scenario { lengthM = lengthM, widthM = widthM };
@@ -185,10 +187,10 @@ namespace Aim2Pro.AIGG
             var mMiss = Regex.Match(e, @"(\d+)\s*%.*?(tiles?|holes?|gaps?).*?missing?");
             if (mMiss.Success) s.missingPct = Mathf.Clamp01(int.Parse(mMiss.Groups[1].Value) / 100f);
 
-            // random bends up to N deg/degree/degrees (either way optional)
+            // random bends up to N deg/degree/degrees
             var mBend = Regex.Match(e, @"random\s+bends?.*?(\d+(?:\.\d+)?)\s*(deg|degree|degrees)");
             if (mBend.Success) { s.randomBends = true; s.bendMaxDeg = float.Parse(mBend.Groups[1].Value); }
-            if (e.Contains("either way")) { /* informational, already symmetric */ }
+            if (e.Contains("either way")) { /* symmetric already */ }
 
             // split / fork / branch
             if (Regex.IsMatch(e, @"\b(split|fork|branch)\b")) s.split = true;
@@ -197,7 +199,7 @@ namespace Aim2Pro.AIGG
             if (Regex.IsMatch(e, @"ups?\s*and\s*downs?") || e.Contains("hills") || e.Contains("slight up"))
                 s.verticalAmp = Mathf.Max(s.verticalAmp, 0.25f);
 
-            // low speed to start / first level → gentler opening
+            // low speed to start / first level
             if (e.Contains("low speed") || e.Contains("first level") || e.Contains("tutorial"))
                 s.lowSpeedStart = true;
 
@@ -207,11 +209,11 @@ namespace Aim2Pro.AIGG
 
             // Defaults if not specified
             if (!s.randomBends) { s.randomBends = true; s.bendMaxDeg = 10f; }
+            if (s.missingPct <= 0f) s.missingPct = 0.10f; // default to 10% holes if unspecified
             return s;
         }
 
-
-        // ---------- Existing row-wise ops remain (used by other commands) ----------
+        // ---------- Row-wise ops for other commands ----------
         public static void DeleteRowsRange(int start, int end)
         {
             var root = FindTrack(); if (!root) return;
@@ -248,7 +250,6 @@ namespace Aim2Pro.AIGG
             if (rows.Count == 0) { Debug.LogWarning("[Kernel] No tiles named tile_r*_c* under track root."); return; }
             int lastRow = rows.Keys.Max();
             var lastTiles = rows[lastRow]; if (lastTiles == null || lastTiles.Count == 0) { Debug.LogWarning("[Kernel] Last row empty."); return; }
-            int cols = lastTiles.Count; float half = (cols - 1) * 0.5f;
             int copies = Mathf.Max(1, Mathf.RoundToInt(distance / Mathf.Max(0.0001f, step)));
             float dz = step;
             Undo.RegisterFullObjectHierarchyUndo(root.gameObject, "AppendStraight");
