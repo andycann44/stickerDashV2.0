@@ -125,3 +125,6 @@ If your plan uses random ops and no `seed(...)`, a seed is auto-inserted and log
   - Build: *Parse -> Canonical*, *Build & Run*, *Rebuild*, *Reveal Plan*.
   - Amend: *Preview Amend*, *Append To Plan*, *Append & Run* (appends to `StickerDash_Status/LastCanonical.plan`).
 - Added `PlanIO` helper to normalize newlines and safely overwrite/append the plan.
+
+## Changelog 2025-10-03
+- Fixed editor menu: **AIGGMainWindow** now targets **TrackGenV2Window** (old `TrackGeneratorWindow` reference removed).

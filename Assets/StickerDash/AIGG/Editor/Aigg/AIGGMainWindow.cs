@@ -8,7 +8,7 @@ namespace Aim2Pro.AIGG {
     void OnGUI(){
       GUILayout.Label("Aim2Pro — AIGG", EditorStyles.boldLabel);
       if(GUILayout.Button("Open Workbench")) Aim2Pro.AIGG.Workbench.WorkbenchWindow.Open();
-      if(GUILayout.Button("Open Track Generator")) Aim2Pro.AIGG.Track.TrackGeneratorWindow.Open();
+      if(GUILayout.Button("Open Track Generator")) Aim2Pro.AIGG.TrackGenV2Window.Open();
       if(GUILayout.Button("Open Paste & Merge")) Aim2Pro.AIGG.SpecPasteMergeWindow.Open();
       if(GUILayout.Button("Open API Settings")) Aim2Pro.AIGG.Settings.ApiSettingsWindow.Open();
     }
