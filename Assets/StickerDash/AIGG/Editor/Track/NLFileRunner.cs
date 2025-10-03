@@ -6,10 +6,17 @@ using UnityEngine;
 
 namespace Aim2Pro.AIGG {
     public static class NLFileRunner {
-        const string NLPath = "StickerDash_Status/NL.input";
-        const string Sheet  = "StickerDash_Status/NL_CheatSheet.md";
+        public const string NLPath = "StickerDash_Status/NL.input";
+        public const string Sheet  = "StickerDash_Status/NL_CheatSheet.md";
 
-        [MenuItem("Window/Aim2Pro/Track Creator/NL/Parse From File")]
+        // Menu: keep just the cheat sheet opener (no clutter/minus submenu items)
+        [MenuItem("Window/Aim2Pro/Track Creator/NL/Open Cheat Sheet")]
+        public static void OpenCheat(){
+            EnsureInputs();
+            EditorUtility.RevealInFinder(Path.GetFullPath(Sheet));
+        }
+
+        // Public helpers (no menu attributes) so windows can call them
         public static void ParseFromFile(){
             EnsureInputs();
             var nl = File.ReadAllText(NLPath);
@@ -18,7 +25,6 @@ namespace Aim2Pro.AIGG {
             Debug.Log("[A2P:NL] Parsed NL.input → Canonical only.");
         }
 
-        [MenuItem("Window/Aim2Pro/Track Creator/NL/Run From File")]
         public static void RunFromFile(){
             EnsureInputs();
             var nl = File.ReadAllText(NLPath);
@@ -27,10 +33,9 @@ namespace Aim2Pro.AIGG {
             NLEngine.RunPlan(false);
         }
 
-        [MenuItem("Window/Aim2Pro/Track Creator/NL/Open Cheat Sheet")]
-        public static void OpenCheat(){
+        public static void OpenNLInput(){
             EnsureInputs();
-            EditorUtility.RevealInFinder(Path.GetFullPath(Sheet));
+            EditorUtility.RevealInFinder(Path.GetFullPath(NLPath));
         }
 
         static void EnsureInputs(){
@@ -65,7 +70,6 @@ namespace Aim2Pro.AIGG {
                 "- random slopes 2 to 4 degrees, segment 2",
                 "- random holes 5%",
                 "- add 2 jump gaps",
-                "- smooth heights",
                 "- protect start 10 end 10",
                 "",
                 "## Fork / Rejoin (Y split)",
@@ -73,8 +77,7 @@ namespace Aim2Pro.AIGG {
                 "- rejoin 200 to 240",
                 "",
                 "## How to run",
-                "Window → Aim2Pro → Track Creator → NL Tester",
-                "or NL → Parse/Run From File (uses StickerDash_Status/NL.input)"
+                "Use NL Tester or Track Gen V2 (Editor)"
             });
         }
     }

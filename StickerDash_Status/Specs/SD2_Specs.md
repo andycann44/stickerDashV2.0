@@ -99,3 +99,8 @@ If your plan uses random ops and no `seed(...)`, a seed is auto-inserted and log
   - Any `deleteTiles(..., row=R)` on protected rows is dropped.
   - `smoothHeights(...)` and legacy `smoothColumns()` are **silently dropped** (placeholder until real smoother op exists).
 - **Limit:** Random-wide ops (e.g., `randomHoles`) still affect protected rows (generator limitation). Use explicit deletes + margins when you need hard-safe ends.
+
+
+## Changelog 2025-10-03
+- **Menu cleanup:** kept only *NL → Open Cheat Sheet*. *Parse/Run From File* moved into **NL Tester** window.
+- **NL Tester** now has buttons: *Open Cheat Sheet*, *Open NL.input*, *Parse From File*, *Run From File*.

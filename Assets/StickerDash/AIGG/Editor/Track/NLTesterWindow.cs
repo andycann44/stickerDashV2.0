@@ -10,34 +10,32 @@ namespace Aim2Pro.AIGG {
             "build 200 by 3",
             "protect start 10 end 10",
             "random slopes 2 to 4 degrees, segment 2",
-            "fork 120 to 160 widen to 3",
-            "rejoin 200 to 240",
-            "smooth heights"
+            "fork same width 140 to 200 gap 1",
+            "auto s-bends 2 at 25"
         });
         string _canon = "";
 
         [MenuItem("Window/Aim2Pro/Track Creator/NL Tester")]
         public static void Open(){
             var w = GetWindow<NLTesterWindow>("NL Tester");
-            w.minSize = new Vector2(620, 480);
+            w.minSize = new Vector2(680, 520);
         }
 
         void OnGUI(){
             GUILayout.Label("Natural Language → Canonical", EditorStyles.boldLabel);
 
+            // NL + Canonical side by side
             EditorGUILayout.BeginHorizontal();
-            // NL
-            EditorGUILayout.BeginVertical(GUILayout.MinWidth(300));
+            EditorGUILayout.BeginVertical(GUILayout.MinWidth(320));
             GUILayout.Label("NL", EditorStyles.miniBoldLabel);
-            _nlScroll = EditorGUILayout.BeginScrollView(_nlScroll, GUILayout.MinHeight(180));
+            _nlScroll = EditorGUILayout.BeginScrollView(_nlScroll, GUILayout.MinHeight(200));
             _nl = EditorGUILayout.TextArea(_nl ?? "", GUILayout.ExpandHeight(true));
             EditorGUILayout.EndScrollView();
             EditorGUILayout.EndVertical();
 
-            // Canonical
-            EditorGUILayout.BeginVertical(GUILayout.MinWidth(300));
+            EditorGUILayout.BeginVertical(GUILayout.MinWidth(320));
             GUILayout.Label("Canonical (read-only)", EditorStyles.miniBoldLabel);
-            _canonScroll = EditorGUILayout.BeginScrollView(_canonScroll, GUILayout.MinHeight(180));
+            _canonScroll = EditorGUILayout.BeginScrollView(_canonScroll, GUILayout.MinHeight(200));
             using (new EditorGUI.DisabledScope(true)){
                 EditorGUILayout.TextArea(_canon ?? "", GUILayout.ExpandHeight(true));
             }
@@ -45,19 +43,32 @@ namespace Aim2Pro.AIGG {
             EditorGUILayout.EndVertical();
             EditorGUILayout.EndHorizontal();
 
-            EditorGUILayout.Space(6);
+            GUILayout.Space(6);
             using (new EditorGUILayout.HorizontalScope()){
-                if (GUILayout.Button("Parse Only", GUILayout.Height(26))) {
+                if (GUILayout.Button("Parse Only", GUILayout.Height(24))) {
                     _canon = NLEngine.ParseNL(_nl ?? "");
                 }
-                if (GUILayout.Button("Write Plan", GUILayout.Height(26))) {
+                if (GUILayout.Button("Write Plan", GUILayout.Height(24))) {
                     _canon = NLEngine.ParseNL(_nl ?? "");
                     NLEngine.WritePlan(_canon);
                 }
-                if (GUILayout.Button("Run Plan", GUILayout.Height(26))) {
+                if (GUILayout.Button("Run Plan", GUILayout.Height(24))) {
                     _canon = NLEngine.ParseNL(_nl ?? "");
                     NLEngine.WritePlan(_canon);
                     NLEngine.RunPlan(false);
+                }
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button("Open Cheat Sheet", GUILayout.Height(24))) {
+                    NLFileRunner.OpenCheat();
+                }
+                if (GUILayout.Button("Open NL.input", GUILayout.Height(24))) {
+                    NLFileRunner.OpenNLInput();
+                }
+                if (GUILayout.Button("Parse From File", GUILayout.Height(24))) {
+                    NLFileRunner.ParseFromFile();
+                }
+                if (GUILayout.Button("Run From File", GUILayout.Height(24))) {
+                    NLFileRunner.RunFromFile();
                 }
             }
         }
