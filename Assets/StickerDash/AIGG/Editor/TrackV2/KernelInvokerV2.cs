@@ -14,6 +14,7 @@ namespace Aim2Pro.AIGG.TrackV2
         public static void Call(string fn, object[] args)
         {
             var t = ResolveTargetType();
+            Debug.Log($"[TrackV2] Invoking {fn} on {(t!=null?t.FullName:\"<stub>\")} with {args?.Length ?? 0} arg(s)");
             if (t == null)
             {
                 Debug.LogWarning("[TrackV2] No real kernel type discovered. Using stub logger.");
