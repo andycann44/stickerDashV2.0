@@ -128,3 +128,9 @@ If your plan uses random ops and no `seed(...)`, a seed is auto-inserted and log
 
 ## Changelog 2025-10-03
 - Fixed editor menu: **AIGGMainWindow** now targets **TrackGenV2Window** (old `TrackGeneratorWindow` reference removed).
+
+## Changelog 2025-10-03
+- **PlanIO** now expands NL macros via `PlanMacros.Expand()` and strips non-runner directives:
+  `safeMarginStart/End`, `safeMargin`, `noSmooth()`, `smoothColumns()` — preventing
+  *Unsupported canonical: safeMarginEnd(10)* warnings.
+- Track Gen V2 continues to call `PlanIO.Overwrite/Append`, so plans are clean before running.
