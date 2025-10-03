@@ -104,3 +104,10 @@ If your plan uses random ops and no `seed(...)`, a seed is auto-inserted and log
 ## Changelog 2025-10-03
 - **Menu cleanup:** kept only *NL → Open Cheat Sheet*. *Parse/Run From File* moved into **NL Tester** window.
 - **NL Tester** now has buttons: *Open Cheat Sheet*, *Open NL.input*, *Parse From File*, *Run From File*.
+
+
+## Changelog 2025-10-03
+- **Cheat Sheet now opens inside Unity** (viewer window with Refresh / Open Externally).
+- Added a **“+” insert button** in NL windows that pops a menu of ready-made commands
+  (including *chicane left→right* and *right→left* examples). Clicking inserts text into the NL box.
+- File tools (Open NL.input / Parse From File / Run From File) remain accessible from the same bar.

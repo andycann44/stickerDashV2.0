@@ -13,7 +13,7 @@ namespace Aim2Pro.AIGG {
         [MenuItem("Window/Aim2Pro/Track Creator/NL/Open Cheat Sheet")]
         public static void OpenCheat(){
             EnsureInputs();
-            NLCheatSheetWindow.Open();
+            EditorUtility.RevealInFinder(Path.GetFullPath(Sheet));
         }
 
         // Public helpers (no menu attributes) so windows can call them

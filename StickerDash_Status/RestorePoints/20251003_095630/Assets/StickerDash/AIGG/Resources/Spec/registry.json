@@ -1,0 +1,5 @@
+{
+  "spline": { "method":"catmull_rom", "tension":0.5, "densityRowsPerMeter":2.0 },
+  "limits": { "maxCurveDegPer10Rows": 45, "slopeDegMin": 0, "slopeDegMax": 10 },
+  "defaults": { "excludeFirstRows": 10, "excludeLastRows": 10, "holesDensityPercent": 10 }
+}

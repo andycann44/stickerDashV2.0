@@ -59,7 +59,7 @@ namespace Aim2Pro.AIGG {
                 }
                 GUILayout.FlexibleSpace();
                 if (GUILayout.Button("Open Cheat Sheet", GUILayout.Height(24))) {
-                    NLCheatSheetWindow.Open();
+                    NLFileRunner.OpenCheat();
                 }
                 if (GUILayout.Button("Open NL.input", GUILayout.Height(24))) {
                     NLFileRunner.OpenNLInput();
@@ -71,19 +71,6 @@ namespace Aim2Pro.AIGG {
                     NLFileRunner.RunFromFile();
                 }
             }
-
-            EditorGUILayout.Space(6);
-            using (new EditorGUILayout.HorizontalScope()){
-                GUILayout.FlexibleSpace();
-                if (GUILayout.Button(new GUIContent("+", "Insert NL snippet"), GUILayout.Width(24), GUILayout.Height(22))){
-                    NLInsertLibrary.ShowInsertMenu(sn => { _nl = NLInsertLibrary.AppendWithNewline(_nl ?? "", sn); });
-                }
-                if (GUILayout.Button("Cheat Sheet", GUILayout.Height(22))) { NLCheatSheetWindow.Open(); }
-                if (GUILayout.Button("Open NL.input", GUILayout.Height(22))) { NLFileRunner.OpenNLInput(); }
-                if (GUILayout.Button("Parse From File", GUILayout.Height(22))) { NLFileRunner.ParseFromFile(); }
-                if (GUILayout.Button("Run From File", GUILayout.Height(22))) { NLFileRunner.RunFromFile(); }
-            }
-        
         }
     }
 }

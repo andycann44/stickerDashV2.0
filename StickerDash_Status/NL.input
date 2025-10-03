@@ -1,0 +1,4 @@
+build 200 by 3
+protect start 10 end 10
+random slopes 2 to 4 degrees, segment 2
+smooth heights
