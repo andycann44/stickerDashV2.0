@@ -89,13 +89,12 @@ namespace Aim2Pro.AIGG.TrackV2
 
             foreach (var spec in argSpecs)
             {
-                // formats: "$1:int", "$2:float", "$3", "$2?:float"
                 var optional = spec.Contains("?:");
                 var core = spec.Replace("?:", ":");
-                string cap = null;
+                string cap;
                 string type = null;
 
-                if (core.StartsWith("$"))
+                if (core.StartsWith("$", StringComparison.Ordinal))
                 {
                     var parts = core.Substring(1).Split(':');
                     var idx = int.Parse(parts[0], CultureInfo.InvariantCulture);
@@ -109,7 +108,7 @@ namespace Aim2Pro.AIGG.TrackV2
 
                 if (string.IsNullOrEmpty(cap))
                 {
-                    if (optional) continue; // skip missing optional
+                    if (optional) continue;
                     list.Add(null);
                     continue;
                 }

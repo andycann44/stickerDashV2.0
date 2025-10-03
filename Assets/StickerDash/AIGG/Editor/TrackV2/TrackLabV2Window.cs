@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using UnityEditor;
 using UnityEngine;
 using System.Collections.Generic;
@@ -8,13 +9,19 @@ namespace Aim2Pro.AIGG.TrackV2
     {
         private string nl = "append straight 20m\nappend arc left 45deg\noffset x rows 3..8 by 0.5m\ndelete rows 10..12";
         private Vector2 scroll;
-        private List<string> log = new List<string>();
+        private readonly List<string> log = new List<string>();
         private V2CommandEngine engine;
 
         [MenuItem("Window/Aim2Pro/Track Creator/Track Lab v2")]
-        public static void Open() => GetWindow<TrackLabV2Window>("Track Lab v2");
+        public static void Open()
+        {
+            GetWindow<TrackLabV2Window>("Track Lab v2");
+        }
 
-        private void OnEnable() => engine = new V2CommandEngine(Log);
+        private void OnEnable()
+        {
+            engine = new V2CommandEngine(Log);
+        }
 
         private void Log(string msg)
         {
@@ -22,7 +29,7 @@ namespace Aim2Pro.AIGG.TrackV2
             Repaint();
         }
 
-                  id OnGUI()
+        private void OnGUI()
         {
             GUILayout.Label("Natural Language", EditorStyles.boldLabel);
             nl = EditorGUILayout.TextArea(nl, GUILayout.MinHeight(140));
@@ -57,3 +64,4 @@ namespace Aim2Pro.AIGG.TrackV2
         }
     }
 }
+#endif
