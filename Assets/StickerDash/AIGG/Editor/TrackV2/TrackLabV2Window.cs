@@ -8,7 +8,7 @@ namespace Aim2Pro.AIGG.TrackV2
     public class TrackLabV2Window : EditorWindow
     {
         private string nlInput =
-@"create 300 m b 6 m track with 10% tiles missing, random bends up to 30 degrees either way, split min 0.5w, slight ups and downs, low speed, simple";
+@"create 300 m by 6 m track with 10% tiles missing, random bends up to 30 degrees either way, split min 0.5w, slight ups and downs, low speed, simple";
         private string log = "";
         private Vector2 logScroll;
         private V2CommandEngine engine;
@@ -26,7 +26,7 @@ namespace Aim2Pro.AIGG.TrackV2
 
         private void OnGUI()
         {
-            // Toolbar — always visible actions
+            // Toolbar (window-only actions)
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
                 if (GUILayout.Button("Parse",    EditorStyles.toolbarButton)) engine.Parse(nlInput);
@@ -35,10 +35,16 @@ namespace Aim2Pro.AIGG.TrackV2
                 if (GUILayout.Button("Analyze",  EditorStyles.toolbarButton)) TrackAnalyzer.AnalyzeAndWriteReport();
                 if (GUILayout.Button("Snapshot", EditorStyles.toolbarButton)) TrackAnalyzer.SaveTopDownSnapshot();
                 if (GUILayout.Button("Clear Tiles", EditorStyles.toolbarButton)) ClearTiles();
+
+                // Bakes
                 if (GUILayout.Button("Bake Mesh (preserve holes)", EditorStyles.toolbarButton))
                     Aim2Pro.AIGG.Kernel.BuildMeshFromTilesPreserveHoles(0.2f, true);
                 if (GUILayout.Button("Bake Clean Mesh (no gaps)", EditorStyles.toolbarButton))
                     Aim2Pro.AIGG.Kernel.BuildSplineFromTrack(0f, 0f, 0.2f, true);
+
+                // One-click preset that matches your description
+                if (GUILayout.Button("Build First Level (preset)", EditorStyles.toolbarButton))
+                    Aim2Pro.AIGG.Kernel.GenerateFirstLevelScenario();
             }
 
             GUILayout.Space(6);

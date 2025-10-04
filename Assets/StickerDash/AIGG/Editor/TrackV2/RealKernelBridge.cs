@@ -102,6 +102,203 @@ namespace Aim2Pro.AIGG
             public float splitMinFrac   = 0.5f; // default: 50% of width
         }
 
+        
+        /// <summary>
+        /// Builds the "first level" you described:
+        /// start → early holes → slight hill (you can see the track behind) →
+        /// more holes → split (L/R, min 0.5*width) → merge → S-bends (±25°) →
+        /// sharp right with an outside guard rail → straight with holes → finish line.
+        /// </summary>
+        public static void GenerateFirstLevelScenario(float widthM = 6f, float lengthApproxM = 320f, int seed = 12345)
+        {
+            var root = FindOrCreateTrack();
+
+            // Pick a template (existing tile) or a unit cube fallback
+            var any = AnyTile(root);
+            var template = any ? Object.Instantiate(any) : GameObject.CreatePrimitive(PrimitiveType.Cube);
+            template.name = "tile_template_runtime";
+            if (!any) template.transform.localScale = new Vector3(1f, 0.2f, 1f);
+
+            var sz  = MeasureXZ(template); if (sz.x < 1e-4f || sz.y < 1e-4f) sz = new Vector2(1,1);
+            int cols = Mathf.Max(3, Mathf.RoundToInt(widthM / sz.x) + 1);
+            float colPitch = sz.x, rowPitch = sz.y;
+
+            // Helper: place one contiguous row (optionally with branch offset and hole pct)
+            System.Action<int, Vector3, Quaternion, float, float> placeRow = (r, center, rot, holePct, branchOffset) =>
+            {
+                float half = (cols - 1) * 0.5f;
+                // main line
+                for (int c = 0; c < cols; c++)
+                {
+                    if (holePct > 0f && UnityEngine.Random.value < holePct) continue;
+                    var g = Object.Instantiate(template, root);
+                    g.name = $"tile_r{r}_c{c}";
+                    g.transform.position = center + (rot * Vector3.right) * ((c - half) * colPitch);
+                    g.transform.rotation = rot;
+                    g.transform.localScale = template.transform.localScale;
+                }
+                // optional branch (offset to the right)
+                if (branchOffset > 0.0001f)
+                {
+                    double hole2 = Mathf.Clamp01((float)holePct + 0.05f); // slightly more holes on branch
+                    for (int c = 0; c < cols; c++)
+                    {
+                        if (hole2 > 0f && UnityEngine.Random.value < hole2) continue;
+                        var g = Object.Instantiate(template, root);
+                        g.name = $"tile_r{r}_c{c}";
+                        g.transform.position = center + (rot * Vector3.right) * ((c - half) * colPitch + branchOffset);
+                        g.transform.rotation = rot;
+                        g.transform.localScale = template.transform.localScale;
+                    }
+                }
+            };
+
+            // Start clean
+            var toDel = new System.Collections.Generic.List<GameObject>();
+            foreach (Transform c in root) if (TileRx.IsMatch(c.name)) toDel.Add(c.gameObject);
+            Undo.RegisterFullObjectHierarchyUndo(root.gameObject, "Build First Level");
+            foreach (var g in toDel) Object.DestroyImmediate(g);
+
+            // Randoms
+            var rng = new System.Random(seed);
+            float Rand01() => (float)rng.NextDouble();
+
+            // Running state
+            int row = 1;
+            float yawDeg = 0f;
+            float y = 0f;
+            Vector3 centerPos = Vector3.zero;
+
+            // Derived values
+            float widthWorld = (cols - 1) * colPitch;
+            float minSplit = Mathf.Max(0.5f * widthWorld, 0.5f * widthM); // >= 0.5 * track width
+            float splitSep  = Mathf.Max(widthWorld + colPitch, minSplit);
+
+            // ---- 1) Start line + early gaps (gentle) ----
+            int rowsStart = Mathf.RoundToInt(30f / rowPitch);
+            for (int i=0;i<rowsStart;i++,row++)
+            {
+                var rot = Quaternion.Euler(0, yawDeg, 0);
+                placeRow(row, centerPos, rot, holePct: 0.05f, branchOffset: 0f);
+                centerPos += (rot * Vector3.forward) * rowPitch;
+            }
+
+            // ---- 2) Slight hill and a gentle bend so you can see behind ----
+            int rowsHill = Mathf.RoundToInt(40f / rowPitch);
+            for (int i=0;i<rowsHill;i++,row++)
+            {
+                float t = (float)i / Mathf.Max(1, rowsHill-1);
+                yawDeg = Mathf.Lerp(0f, 15f, t);           // slow gentle left
+                y     = Mathf.Sin(t * Mathf.PI) * 2.0f;    // up then slightly down
+                var rot = Quaternion.Euler(0, yawDeg, 0);
+                var pos = new Vector3(centerPos.x, y, centerPos.z);
+                placeRow(row, pos, rot, holePct: 0.10f, branchOffset: 0f);
+                centerPos = pos + (rot * Vector3.forward) * rowPitch;
+            }
+
+            // ---- 3) Holes & dodging ----
+            int rowsDodge = Mathf.RoundToInt(40f / rowPitch);
+            for (int i=0;i<rowsDodge;i++,row++)
+            {
+                // small random yaw jiggle within ±10
+                yawDeg = Mathf.Clamp(yawDeg + (Rand01()*2f-1f)*4f, -10f, 20f);
+                var rot = Quaternion.Euler(0, yawDeg, 0);
+                placeRow(row, centerPos, rot, holePct: 0.15f, branchOffset: 0f);
+                centerPos += (rot * Vector3.forward) * rowPitch;
+            }
+
+            // ---- 4) Split (L/R) then merge ----
+            int diverge = Mathf.RoundToInt(20f / rowPitch);
+            int plateau = Mathf.RoundToInt(30f / rowPitch);
+            int converge= diverge;
+            for (int i=0;i<diverge;i++,row++)
+            {
+                var rot = Quaternion.Euler(0, yawDeg, 0);
+                float t = (float)i / Mathf.Max(1, diverge-1);
+                float off = Mathf.SmoothStep(0f, splitSep, t);
+                placeRow(row, centerPos, rot, holePct: 0.12f, branchOffset: off);
+                centerPos += (rot * Vector3.forward) * rowPitch;
+            }
+            for (int i=0;i<plateau;i++,row++)
+            {
+                var rot = Quaternion.Euler(0, yawDeg, 0);
+                placeRow(row, centerPos, rot, holePct: 0.12f, branchOffset: splitSep);
+                centerPos += (rot * Vector3.forward) * rowPitch;
+            }
+            for (int i=0;i<converge;i++,row++)
+            {
+                var rot = Quaternion.Euler(0, yawDeg, 0);
+                float t = (float)i / Mathf.Max(1, converge-1);
+                float off = Mathf.SmoothStep(splitSep, 0f, t);
+                placeRow(row, centerPos, rot, holePct: 0.12f, branchOffset: off);
+                centerPos += (rot * Vector3.forward) * rowPitch;
+            }
+
+            // ---- 5) S-bends (±25°) ----
+            int sRows = Mathf.RoundToInt(60f / rowPitch);
+            for (int i=0;i<sRows;i++,row++)
+            {
+                float t = (float)i / Mathf.Max(1, sRows-1);
+                // go left to +25 then back to -25 along a smooth curve
+                yawDeg = Mathf.Sin(t * Mathf.PI) * 25f;
+                var rot = Quaternion.Euler(0, yawDeg, 0);
+                placeRow(row, centerPos, rot, holePct: 0.08f, branchOffset: 0f);
+                centerPos += (rot * Vector3.forward) * rowPitch;
+            }
+
+            // ---- 6) Sharp right with guard rail ----
+            int turnRows = Mathf.RoundToInt(35f / rowPitch); // ~70° over these rows
+            float yawStart = yawDeg;
+            var railRoot = GameObject.Find("A2P_GuardRails") ?? new GameObject("A2P_GuardRails");
+            railRoot.transform.SetParent(root, true);
+            float guardWidth = Mathf.Min(0.4f * widthWorld, 0.6f); // narrow bumper
+            for (int i=0;i<turnRows;i++,row++)
+            {
+                float t = (float)i / Mathf.Max(1, turnRows-1);
+                yawDeg = Mathf.Lerp(yawStart, yawStart - 70f, t); // sharp right
+                var rot = Quaternion.Euler(0, yawDeg, 0);
+                placeRow(row, centerPos, rot, holePct: 0.08f, branchOffset: 0f);
+
+                // Guard rail on outside (right side of the curve)
+                // Put a slim cube along the outer edge of the row
+                float half = (cols - 1) * 0.5f;
+                var rail = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                rail.name = $"guard_r{row}";
+                rail.transform.SetParent(railRoot.transform, true);
+                // position at outside-right edge
+                rail.transform.position = centerPos + (rot * Vector3.right) * ((half * colPitch) + guardWidth * 0.5f);
+                rail.transform.rotation = rot;
+                rail.transform.localScale = new Vector3(guardWidth, 1.2f, rowPitch * 1.05f);
+
+                centerPos += (rot * Vector3.forward) * rowPitch;
+            }
+
+            // ---- 7) Straight with more missing tiles ----
+            int straightRows = Mathf.RoundToInt(50f / rowPitch);
+            for (int i=0;i<straightRows;i++,row++)
+            {
+                var rot = Quaternion.Euler(0, yawDeg, 0);
+                placeRow(row, centerPos, rot, holePct: 0.18f, branchOffset: 0f);
+                centerPos += (rot * Vector3.forward) * rowPitch;
+            }
+
+            // ---- 8) Finish line ----
+            {
+                var rot = Quaternion.Euler(0, yawDeg, 0);
+                float half = (cols - 1) * 0.5f;
+                var finish = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                finish.name = "A2P_Finish";
+                finish.transform.SetParent(root, true);
+                finish.transform.position = centerPos; // across the width
+                finish.transform.rotation = rot;
+                finish.transform.localScale = new Vector3(widthWorld + colPitch, 0.1f, rowPitch * 0.8f);
+            }
+
+            Object.DestroyImmediate(template);
+            Debug.Log("[Kernel] Built First Level preset: start→hill→holes→split→S-bends→sharp-right(rail)→straight→finish");
+        }
+    
+
         public static void GenerateScenarioFromPrompt(float lengthM, float widthM, string extras = "")
         {
             var root = FindOrCreateTrack();
