@@ -11,15 +11,9 @@ using System.Collections.Generic;
 namespace Aim2Pro.AIGG.TrackV2
 {
     /// Analyzer + top-down snapshot for A2P_Track with tiles named: tile_r{row}_c{col}
-    public static class TrackAnalyzer
+    internal static class TrackAnalyzer
     {
         static readonly Regex TileRx = new Regex(@"^tile_r(?<r>\d+)_c(?<c>\d+)$", RegexOptions.IgnoreCase);
-
-        [MenuItem("Window/Aim2Pro/Track Creator/Analyze Track v2")]
-        public static void AnalyzeMenu() => AnalyzeAndWriteReport();
-
-        [MenuItem("Window/Aim2Pro/Track Creator/Top-Down Snapshot v2")]
-        public static void SnapshotMenu() => SaveTopDownSnapshot();
 
         // ---------- Core finders ----------
         static Transform FindTrackRoot()
@@ -27,7 +21,6 @@ namespace Aim2Pro.AIGG.TrackV2
             var go = GameObject.Find("A2P_Track") ?? GameObject.Find("Track");
             if (go) return go.transform;
 
-            // Heuristic: any root with multiple tile_r?_c? children
             foreach (var root in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
             {
                 int seen = 0;
@@ -59,7 +52,6 @@ namespace Aim2Pro.AIGG.TrackV2
             return rows;
         }
 
-        // ---------- Metrics helpers ----------
         static Vector3 Centroid(IList<Transform> ts)
         {
             if (ts == null || ts.Count == 0) return Vector3.zero;
@@ -88,26 +80,7 @@ namespace Aim2Pro.AIGG.TrackV2
             return b;
         }
 
-        // cluster a row into one or two lateral groups based on X gaps
-        static List<List<Transform>> ClusterRowByGaps(List<Transform> tiles)
-        {
-            if (tiles.Count <= 2) return new List<List<Transform>> { tiles };
-            var sorted = tiles.OrderBy(t => t.position.x).ToList();
-            var gaps = new List<float>();
-            for (int i = 1; i < sorted.Count; i++) gaps.Add(Mathf.Abs(sorted[i].position.x - sorted[i-1].position.x));
-            float medGap = Median(gaps);
-            float splitGap = Mathf.Max(0.01f, medGap * 2.5f);
-
-            var clusters = new List<List<Transform>> { new List<Transform>{ sorted[0] } };
-            for (int i = 1; i < sorted.Count; i++)
-            {
-                float g = Mathf.Abs(sorted[i].position.x - sorted[i-1].position.x);
-                if (g > splitGap) clusters.Add(new List<Transform>());
-                clusters[clusters.Count - 1].Add(sorted[i]);
-            }
-            return clusters;
-        }
-
+        // Public API used by the window
         public static void AnalyzeAndWriteReport()
         {
             var root = FindTrackRoot(); if (!root) return;
@@ -121,92 +94,55 @@ namespace Aim2Pro.AIGG.TrackV2
             int firstRow = rowKeys.First();
             int lastRow  = rowKeys.Last();
 
-            // tiles / holes
             int present = rows.Sum(kv => kv.Value.Count);
             int expectedPerRow = Math.Max(0, maxCol - minCol + 1);
             int expected = expectedPerRow * rowCount;
             int missing = Math.Max(0, expected - rows.Sum(kv => kv.Value.Select(t => TileRx.Match(t.name).Groups["c"].Value).Distinct().Count()));
             float missingPct = expected > 0 ? (float)missing / expected : 0f;
 
-            // width (median X-span using adjacent deltas)
             var rowWidths = new List<float>();
-            var allTiles = new List<Transform>();
             foreach (var r in rowKeys)
             {
-                var tiles = rows[r];
-                allTiles.AddRange(tiles);
-                var cols = tiles
+                var tiles = rows[r]
                     .Select(t => new { t, m = TileRx.Match(t.name) })
                     .Where(x => x.m.Success)
                     .Select(x => new { t = x.t, c = int.Parse(x.m.Groups["c"].Value) })
                     .OrderBy(x => x.c)
                     .ToList();
 
-                if (cols.Count >= 2)
+                if (tiles.Count >= 2)
                 {
-                    float minX = cols.First().t.position.x;
-                    float maxX = cols.Last().t.position.x;
                     var deltas = new List<float>();
-                    for (int i = 1; i < cols.Count; i++)
-                        deltas.Add(Mathf.Abs(cols[i].t.position.x - cols[i-1].t.position.x));
+                    for (int i = 1; i < tiles.Count; i++)
+                        deltas.Add(Mathf.Abs(tiles[i].t.position.x - tiles[i-1].t.position.x));
                     float pitchX = Median(deltas);
-                    int spanCols = cols.Last().c - cols.First().c;
-                    float width = (spanCols <= 0 || pitchX <= 0f) ? Mathf.Abs(maxX - minX) : spanCols * pitchX;
+                    int spanCols = tiles.Last().c - tiles.First().c;
+                    float width = (spanCols <= 0 || pitchX <= 0f)
+                        ? Mathf.Abs(tiles.Last().t.position.x - tiles.First().t.position.x)
+                        : spanCols * pitchX;
                     rowWidths.Add(width);
                 }
             }
             float widthM = rowWidths.Count > 0 ? Median(rowWidths) : 1f;
 
-            // mainline centers following nearest cluster (avoid hopping across split)
-            var centers = new List<Vector3>();
-            Vector3? prevCenter = null;
-            int splitRows = 0;
-            foreach (var r in rowKeys)
-            {
-                var tiles = rows[r];
-                var clusters = ClusterRowByGaps(tiles);
-                if (clusters.Count > 1) splitRows++;
-
-                if (prevCenter == null)
-                {
-                    centers.Add(Centroid(clusters.OrderByDescending(c => c.Count).First()));
-                    prevCenter = centers[centers.Count - 1];
-                }
-                else
-                {
-                    // choose cluster whose centroid is nearest to previous center
-                    var cands = clusters.Select(c => new { c, cent = Centroid(c) }).ToList();
-                    var pick = cands.OrderBy(k => Vector3.SqrMagnitude(k.cent - prevCenter.Value)).First();
-                    centers.Add(pick.cent);
-                    prevCenter = pick.cent;
-                }
-            }
-
-            // length from mainline centers
+            var centers = rowKeys.Select(r => rows[r]).Select(ts => Centroid(ts)).ToList();
             var pitches = new List<float>();
-            for (int i = 1; i < centers.Count; i++)
-                pitches.Add(Vector3.Distance(centers[i-1], centers[i]));
+            for (int i = 1; i < centers.Count; i++) pitches.Add(Vector3.Distance(centers[i-1], centers[i]));
             float pitchZ = pitches.Count > 0 ? Median(pitches) : 1f;
             float lengthM = pitchZ * (centers.Count - 1);
 
-            // curvature on mainline
             var headings = new List<Vector3>();
             for (int i = 1; i < centers.Count; i++)
             {
-                var d = centers[i] - centers[i-1];
-                d.y = 0f;
+                var d = centers[i] - centers[i-1]; d.y = 0f;
                 if (d.sqrMagnitude > 1e-6f) headings.Add(d.normalized);
             }
             var curveDegs = new List<float>();
             for (int i = 1; i < headings.Count; i++)
-            {
-                float ang = Vector3.SignedAngle(headings[i-1], headings[i], Vector3.up);
-                curveDegs.Add(Mathf.Abs(ang));
-            }
+                curveDegs.Add(Mathf.Abs(Vector3.SignedAngle(headings[i-1], headings[i], Vector3.up)));
             float meanCurv = curveDegs.Count > 0 ? curveDegs.Average() : 0f;
             float maxCurv = curveDegs.Count > 0 ? curveDegs.Max() : 0f;
 
-            // write report
             string projRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
             string outDir = Path.Combine(projRoot, "StickerDash_Status");
             Directory.CreateDirectory(outDir);
@@ -221,19 +157,11 @@ namespace Aim2Pro.AIGG.TrackV2
             sb.AppendLine($"- Est. width: **{widthM:F1} m** (median X-span)");
             sb.AppendLine($"- Tiles present: **{present}**");
             if (expected > 0) sb.AppendLine($"- Estimated missing tiles: **{missing}** ({missingPct:P0})");
-            sb.AppendLine($"- Curvature (mainline): mean **{meanCurv:F1}°**, max **{maxCurv:F1}°**");
-            sb.AppendLine($"- Split section: **{(splitRows>0 ? "yes" : "no")}** (~{splitRows} rows)");
-            sb.AppendLine();
-            sb.AppendLine("## Notes");
-            sb.AppendLine("- Length/width target the generator's requested meters using computed pitches.");
-            sb.AppendLine("- Curvature follows the mainline through splits (no centroid jumping).");
+            sb.AppendLine($"- Curvature: mean **{meanCurv:F1}°**, max **{maxCurv:F1}°**");
             File.WriteAllText(md, sb.ToString(), Encoding.UTF8);
-
             Debug.Log($"[TrackAnalyzer] Wrote report → {md}");
-            EditorUtility.RevealInFinder(md);
         }
 
-        // ---------- Snapshot ----------
         public static void SaveTopDownSnapshot(int pixels = 2048, float margin = 2f)
         {
             var root = FindTrackRoot(); if (!root) return;
@@ -284,7 +212,6 @@ namespace Aim2Pro.AIGG.TrackV2
             UnityEngine.Object.DestroyImmediate(goCam);
 
             Debug.Log($"[TrackAnalyzer] Saved snapshot → {png}");
-            EditorUtility.RevealInFinder(png);
         }
     }
 }

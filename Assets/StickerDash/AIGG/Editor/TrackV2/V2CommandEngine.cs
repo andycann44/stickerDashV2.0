@@ -6,29 +6,22 @@ using UnityEngine;
 
 namespace Aim2Pro.AIGG.TrackV2
 {
-    [Serializable]
-    public class CommandCall { public string fn; public List<string> args; }
-    [Serializable]
-    public class CommandRule { public string name; public string regex; public CommandCall call; }
-    [Serializable]
-    public class CommandSpec { public List<CommandRule> commands; }
+    [Serializable] public class CommandCall { public string fn; public List<string> args; }
+    [Serializable] public class CommandRule { public string name; public string regex; public CommandCall call; }
+    [Serializable] public class CommandSpec { public List<CommandRule> commands; }
 
     public class V2CommandEngine
     {
         private readonly Action<string> log;
         private CommandSpec spec;
-        private readonly List<(CommandRule rule, object[] args)> planned = new List<(CommandRule, object[])>();
+        private readonly List<(CommandRule rule, object[] args)> planned = new();
 
         public V2CommandEngine(Action<string> logger) { log = logger; }
 
         public void LoadRules()
         {
             var ta = Resources.Load<TextAsset>("TrackV2/commands");
-            if (ta == null)
-            {
-                log("ERROR: commands.json not found at Resources/TrackV2/commands.json");
-                return;
-            }
+            if (ta == null) { log("ERROR: commands.json not found at Resources/TrackV2/commands.json"); return; }
             spec = JsonUtility.FromJson<CommandSpec>(ta.text);
             log($"Loaded {spec?.commands?.Count ?? 0} command rules.");
         }
@@ -41,12 +34,11 @@ namespace Aim2Pro.AIGG.TrackV2
             var lines = nl.Split(new[] { '\r','\n' }, StringSplitOptions.RemoveEmptyEntries);
             foreach (var raw in lines)
             {
-                var line = Normalize(raw);
+                var line = Regex.Replace(raw.Trim(), "\\s+", " ").ToLowerInvariant();
                 bool matched = false;
                 foreach (var rule in spec.commands)
                 {
-                    var rx = new Regex(rule.regex, RegexOptions.IgnoreCase);
-                    var m = rx.Match(line);
+                    var m = new Regex(rule.regex, RegexOptions.IgnoreCase).Match(line);
                     if (!m.Success) continue;
 
                     var args = BuildArgs(rule.call.args, m);
@@ -64,22 +56,10 @@ namespace Aim2Pro.AIGG.TrackV2
         {
             foreach (var (rule, args) in planned)
             {
-                try
-                {
-                    KernelInvokerV2.Call(rule.call.fn, args);
-                    log($"APPLIED: {rule.call.fn}()");
-                }
-                catch (Exception ex)
-                {
-                    log($"ERROR applying {rule.call.fn}: {ex.Message}");
-                }
+                try { KernelInvokerV2.Call(rule.call.fn, args); log($"APPLIED: {rule.call.fn}()"); }
+                catch (Exception ex) { log($"ERROR applying {rule.call.fn}: {ex.Message}"); }
             }
             if (planned.Count == 0) log("Nothing to apply.");
-        }
-
-        private static string Normalize(string s)
-        {
-            return Regex.Replace(s.Trim(), "\\s+", " ").ToLowerInvariant();
         }
 
         private static object[] BuildArgs(List<string> argSpecs, Match m)
@@ -89,36 +69,54 @@ namespace Aim2Pro.AIGG.TrackV2
 
             foreach (var spec in argSpecs)
             {
-                var optional = spec.Contains("?:");
-                var core = spec.Replace("?:", ":");
-                string cap;
+                // Accept both "$2?:float" and "$2?" styles; type is optional.
+                bool optional = spec.Contains("?:") || spec.EndsWith("?");
+                string core = spec.Contains("?:") ? spec.Replace("?:", ":") : spec.TrimEnd('?');
+
+                string cap = null;
                 string type = null;
 
                 if (core.StartsWith("$", StringComparison.Ordinal))
                 {
-                    var parts = core.Substring(1).Split(':');
-                    var idx = int.Parse(parts[0], CultureInfo.InvariantCulture);
+                    var after = core.Substring(1);
+                    var parts = after.Split(':');          // ["2"] or ["2","float"]
+                    var idxStr = parts[0].TrimEnd('?');    // tolerate "$2?"
+                    if (!int.TryParse(idxStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out var idx))
+                    {
+                        // Bad capture index; skip optional else null
+                        if (optional) continue;
+                        list.Add(null);
+                        continue;
+                    }
                     type = parts.Length > 1 ? parts[1] : null;
-                    cap = m.Groups.Count > idx ? m.Groups[idx].Value : null;
+                    cap  = m.Groups.Count > idx ? m.Groups[idx].Value : null;
                 }
                 else
                 {
-                    cap = spec;
+                    cap = core;
                 }
 
                 if (string.IsNullOrEmpty(cap))
                 {
-                    if (optional) continue;
+                    if (optional) continue; // skip missing optional
                     list.Add(null);
                     continue;
                 }
 
-                if (type == "int")
-                    list.Add(int.Parse(cap, CultureInfo.InvariantCulture));
-                else if (type == "float")
-                    list.Add(float.Parse(cap, CultureInfo.InvariantCulture));
-                else
+                try
+                {
+                    if (type == "int")
+                        list.Add(int.Parse(cap, CultureInfo.InvariantCulture));
+                    else if (type == "float")
+                        list.Add(float.Parse(cap, CultureInfo.InvariantCulture));
+                    else
+                        list.Add(cap);
+                }
+                catch
+                {
+                    // Be forgiving: if cast fails, pass raw string
                     list.Add(cap);
+                }
             }
             return list.ToArray();
         }
