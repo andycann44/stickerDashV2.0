@@ -1,0 +1,41 @@
+        public static void WritePlan(string canon){
+            string expanded = PlanMacros.Expand((canon ?? "").Trim());
+            var dir = Path.GetDirectoryName(PlanPath);
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            File.WriteAllText(PlanPath, expanded + Environment.NewLine, new UTF8Encoding(false));
+            Debug.Log("[A2P:NL] Wrote plan -> " + PlanPath);
+        }
+
+        public static void RunPlan(bool viaSBendFix){
+            string menu = viaSBendFix
+                ? "Window/Aim2Pro/Track Creator/Track Gen V2 (SBend Fix)"
+                : "Window/Aim2Pro/Track Creator/Run Last Canonical";
+            if (!EditorApplication.ExecuteMenuItem(menu)){
+                Debug.LogWarning("[A2P:NL] Could not trigger menu: " + menu);
+            }
+        }
+
+        static string Normalize(string s){
+            if (s == null) return "";
+            s = s.Replace("\\r", "");
+            s = Regex.Replace(s, @"(\\d+(?:\\.\\d+)?)\\s*m\\b", "$1");
+            return s.ToLowerInvariant();
+        }
+        static string TrimNum(string x){ if (x.IndexOf(".") >= 0) x = x.TrimEnd("0".ToCharArray()).TrimEnd(".".ToCharArray()); return x; }
+        static string CsvNums(string s){
+            var list = new System.Collections.Generic.List<string>();
+            foreach (Match m in Regex.Matches(s ?? "", @"\\d+")) list.Add(m.Value);
+            return string.Join(",", list.ToArray());
+        }
+        static string LoadPlanIfAny(){
+            try{ if (File.Exists(PlanPath)) return File.ReadAllText(PlanPath); } catch{}
+            return "";
+        }
+        static void TryAppendSeedLog(int seed){
+            try{
+                Directory.CreateDirectory(Path.GetDirectoryName(SeedsLog));
+                File.AppendAllText(SeedsLog, DateTime.UtcNow.ToString("u") + " seed(" + seed.ToString() + ")" + Environment.NewLine, new UTF8Encoding(false));
+            } catch {}
+        }
+    }
+}

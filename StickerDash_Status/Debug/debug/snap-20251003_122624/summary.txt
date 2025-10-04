@@ -1,0 +1,17 @@
+== StickerDash snapshot ==
+Time: 2025-10-03 12:26:24
+
+Saved files:
+- Assets/StickerDash/AIGG/Editor/Track/TrackGenV2Window.cs
+- Assets/StickerDash/AIGG/Editor/Track/NLEngine.cs
+- Assets/StickerDash/AIGG/Editor/Track/NLTesterWindow.cs
+- Assets/StickerDash/AIGG/Editor/Track/NLFileRunner.cs
+- Assets/StickerDash/AIGG/Editor/Track/NLInsertLibrary.cs
+- Assets/StickerDash/AIGG/Editor/Track/PlanMacros.cs
+- Assets/StickerDash/AIGG/Editor/Track/CanonicalRunner.cs
+- Assets/StickerDash/AIGG/Editor/Aigg/AIGGMainWindow.cs
+- StickerDash_Status/LastCanonical.plan
+- StickerDash_Status/Specs/SD2_Specs.md
+
+Missing:
+- (none)

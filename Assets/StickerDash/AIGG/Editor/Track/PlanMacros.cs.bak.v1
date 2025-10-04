@@ -1,0 +1,113 @@
+#if UNITY_EDITOR
+using System;
+using System.IO;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Collections.Generic;
+
+namespace Aim2Pro.AIGG {
+    public static class PlanMacros {
+        static readonly Regex RxSeed = new Regex(@"\bseed\(\s*(\d+)\s*\)", RegexOptions.IgnoreCase);
+        static readonly Regex RxBuild = new Regex(@"\bbuildAbs\(\s*(\d+)\s*,\s*(\d+)\s*\)", RegexOptions.IgnoreCase);
+
+        static readonly Regex RxSafeStart = new Regex(@"\bsafeMarginStart\(\s*(\d+)\s*\)", RegexOptions.IgnoreCase);
+        static readonly Regex RxSafeEnd   = new Regex(@"\bsafeMarginEnd\(\s*(\d+)\s*\)", RegexOptions.IgnoreCase);
+
+        static readonly Regex RxRandomHoles = new Regex(@"\brandomHoles\(\s*(\d+(?:\.\d+)?)\s*\)", RegexOptions.IgnoreCase);
+        static readonly Regex RxInsertGaps  = new Regex(@"\binsertJumpGaps\(\s*(\d+)\s*\)", RegexOptions.IgnoreCase);
+        static readonly Regex RxDeleteRows  = new Regex(@"\bdeleteRows\(\s*(\d+)\s*,\s*(\d+)\s*\)", RegexOptions.IgnoreCase);
+        static readonly Regex RxDeleteTiles = new Regex(@"\bdeleteTiles\(\s*([0-9,\s]+)\s*,\s*row\s*=\s*(\d+)\s*\)", RegexOptions.IgnoreCase);
+
+        public static string Expand(string src){
+            if (string.IsNullOrEmpty(src)) return string.Empty;
+
+            // Normalize newlines, then iterate by line using StringReader (avoids char \n issues)
+            string norm = (src ?? string.Empty).Replace("\r\n","\n").Replace("\r","\n");
+            var sb = new StringBuilder();
+
+            int length = 0, width = 0;
+            int safeStart = 0, safeEnd = 0;
+            var rnd = new Random();
+            int seed = 0;
+
+            using (var reader = new StringReader(norm)){
+                string raw;
+                while ((raw = reader.ReadLine()) != null){
+                    string line = (raw ?? string.Empty).Trim();
+                    if (line.Length == 0) continue;
+
+                    var m = RxSeed.Match(line);
+                    if (m.Success){ seed = int.Parse(m.Groups[1].Value); rnd = new Random(seed); sb.AppendLine(line); continue; }
+
+                    m = RxBuild.Match(line);
+                    if (m.Success){ length = int.Parse(m.Groups[1].Value); width = int.Parse(m.Groups[2].Value); sb.AppendLine(line); continue; }
+
+                    m = RxSafeStart.Match(line); if (m.Success){ safeStart = int.Parse(m.Groups[1].Value); continue; }
+                    m = RxSafeEnd.Match(line);   if (m.Success){ safeEnd   = int.Parse(m.Groups[1].Value); continue; }
+
+                    // randomHoles(pct) -> deleteTiles rows outside protected bands
+                    m = RxRandomHoles.Match(line);
+                    if (m.Success){
+                        double pct = double.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+                        if (pct > 0 && length > 0 && width > 0){
+                            for (int r = 1 + safeStart; r <= Math.Max(0, length - safeEnd); r++){
+                                var cols = new List<int>();
+                                for (int c = 1; c <= width; c++) if (rnd.NextDouble() * 100.0 < pct) cols.Add(c);
+                                if (cols.Count > 0) sb.AppendLine("deleteTiles(" + string.Join(",", cols) + ", row=" + r + ")");
+                            }
+                        }
+                        continue;
+                    }
+
+                    // insertJumpGaps(n) -> choose rows outside protected bands (deleteRows r,r)
+                    m = RxInsertGaps.Match(line);
+                    if (m.Success){
+                        int n = int.Parse(m.Groups[1].Value);
+                        if (n > 0 && length > 0){
+                            var allowed = new List<int>();
+                            for (int r = 1 + safeStart; r <= Math.Max(0, length - safeEnd); r++) allowed.Add(r);
+                            for (int i = 0; i < n && allowed.Count > 0; i++){
+                                int idx = rnd.Next(allowed.Count); int rr = allowed[idx]; allowed.RemoveAt(idx);
+                                sb.AppendLine("deleteRows(" + rr + "," + rr + ")");
+                            }
+                        }
+                        continue;
+                    }
+
+                    // deleteRows(a,b) -> clamp to safe bands
+                    m = RxDeleteRows.Match(line);
+                    if (m.Success){
+                        int a = int.Parse(m.Groups[1].Value), b = int.Parse(m.Groups[2].Value);
+                        if (a > b) { var t = a; a = b; b = t; }
+                        if (length > 0){
+                            int aa = Math.Max(a, 1 + safeStart);
+                            int bb = Math.Min(b, Math.Max(0, length - safeEnd));
+                            if (aa <= bb) sb.AppendLine("deleteRows(" + aa + "," + bb + ")");
+                        } else {
+                            sb.AppendLine(line);
+                        }
+                        continue;
+                    }
+
+                    // deleteTiles(csv,row=R) -> drop if protected
+                    m = RxDeleteTiles.Match(line);
+                    if (m.Success){
+                        int row = int.Parse(m.Groups[2].Value);
+                        if (length > 0){
+                            if (row >= 1 + safeStart && row <= Math.Max(0, length - safeEnd)) sb.AppendLine(line);
+                        } else {
+                            sb.AppendLine(line);
+                        }
+                        continue;
+                    }
+
+                    // pass-through others (curves, s-bends, slopes, …)
+                    sb.AppendLine(line);
+                }
+            }
+
+            return sb.ToString().Trim();
+        }
+    }
+}
+#endif

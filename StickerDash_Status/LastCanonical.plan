@@ -1,2 +1,2 @@
-seed(1321862560)\nbuildAbs(200,3)
-randomHoles(5)
+seed(4900360)
+buildAbs(300,6)
