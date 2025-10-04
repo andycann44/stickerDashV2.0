@@ -66,6 +66,13 @@ namespace Aim2Pro.TrackCreator
 
             EditorGUILayout.Space(12);
             DrawNLBox(); // deletes are NL-only now
+
+            // --- Spec helpers (open Aigg Paste & Merge) ---
+            GUILayout.Space(8);
+            GUILayout.Label("Spec Tools", EditorStyles.miniBoldLabel);
+            if (GUILayout.Button("Open Aigg — Paste & Merge")) {
+                UnityEditor.EditorApplication.ExecuteMenuItem("Window/Aim2Pro/Aigg/Paste & Merge");
+            }
         }
 
         // ---- NL box + tiny parser ----
