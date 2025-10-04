@@ -8,7 +8,7 @@ namespace Aim2Pro.AIGG.TrackV2
     public class TrackLabV2Window : EditorWindow
     {
         private string nlInput =
-@"create 300 m b 6 m track with 10% tiles missing, random bends up to 30 degrees either way, split, slight ups and downs, low speed, simple";
+@"create 300 m b 6 m track with 10% tiles missing, random bends up to 30 degrees either way, split min 0.5w, slight ups and downs, low speed, simple";
         private string log = "";
         private Vector2 logScroll;
         private V2CommandEngine engine;
@@ -26,21 +26,19 @@ namespace Aim2Pro.AIGG.TrackV2
 
         private void OnGUI()
         {
-            // Toolbar
+            // Toolbar — always visible actions
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                if (GUILayout.Button("Parse", EditorStyles.toolbarButton)) engine.Parse(nlInput);
-                if (GUILayout.Button("Apply", EditorStyles.toolbarButton)) engine.Apply();
+                if (GUILayout.Button("Parse",    EditorStyles.toolbarButton)) engine.Parse(nlInput);
+                if (GUILayout.Button("Apply",    EditorStyles.toolbarButton)) engine.Apply();
                 GUILayout.FlexibleSpace();
-                if (GUILayout.Button("Analyze", EditorStyles.toolbarButton)) TrackAnalyzer.AnalyzeAndWriteReport();
+                if (GUILayout.Button("Analyze",  EditorStyles.toolbarButton)) TrackAnalyzer.AnalyzeAndWriteReport();
                 if (GUILayout.Button("Snapshot", EditorStyles.toolbarButton)) TrackAnalyzer.SaveTopDownSnapshot();
                 if (GUILayout.Button("Clear Tiles", EditorStyles.toolbarButton)) ClearTiles();
-                
                 if (GUILayout.Button("Bake Mesh (preserve holes)", EditorStyles.toolbarButton))
                     Aim2Pro.AIGG.Kernel.BuildMeshFromTilesPreserveHoles(0.2f, true);
                 if (GUILayout.Button("Bake Clean Mesh (no gaps)", EditorStyles.toolbarButton))
                     Aim2Pro.AIGG.Kernel.BuildSplineFromTrack(0f, 0f, 0.2f, true);
-if (GUILayout.Button("Bake Clean Mesh (no gaps)", EditorStyles.toolbarButton)) Aim2Pro.AIGG.Kernel.BuildSplineFromTrack(0f, 0f, 0.2f, true);
             }
 
             GUILayout.Space(6);
@@ -54,14 +52,7 @@ if (GUILayout.Button("Bake Clean Mesh (no gaps)", EditorStyles.toolbarButton)) A
             EditorGUILayout.EndScrollView();
 
             GUILayout.Space(6);
-            // Quick kernel check
-            var k = System.AppDomain.CurrentDomain.GetAssemblies();
-            bool hasBaker = false;
-            foreach (var a in k)
-                foreach (var t in a.GetTypes())
-                    if (t.FullName == "Aim2Pro.AIGG.Kernel" && t.GetMethod("BuildSplineFromTrack", System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.Static) != null)
-                        hasBaker = true;
-            if (!hasBaker) EditorGUILayout.HelpBox("Kernel.BuildSplineFromTrack not found. Recompile expected after patch.", MessageType.Warning);
+            EditorGUILayout.HelpBox("v2 is data-driven: edit Assets/StickerDash/AIGG/Resources/TrackV2/commands.json", MessageType.Info);
         }
 
         private static void ClearTiles()
