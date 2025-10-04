@@ -1,20 +1,41 @@
 {
   "commands": [
+    {
+      "name": "scenario-a",
+      "regex": "\\b(?:create|build|make)\\s+(\\d+(?:\\.\\d+)?)\\s*m\\s*(?:by|x|b)\\s*(\\d+(?:\\.\\d+)?)\\s*m\\s*track(?:[\\s,]*(.*))?$",
+      "call": { "fn": "GenerateScenarioFromPrompt", "args": ["$1:float", "$2:float", "$3?:string"] }
+    },
+    {
+      "name": "scenario-b",
+      "regex": "\\b(?:create|build|make)\\s+(\\d+(?:\\.\\d+)?)\\s*m\\s*(?:long|length).*?(\\d+(?:\\.\\d+)?)\\s*m\\s*(?:wide|width).*?track(?:[\\s,]*(.*))?$",
+      "call": { "fn": "GenerateScenarioFromPrompt", "args": ["$1:float", "$2:float", "$3?:string"] }
+    },
+    {
+      "name": "scenario-c",
+      "regex": "\\b(?:create|build|make)\\s+(\\d+(?:\\.\\d+)?)\\s*m\\s*(?:wide|width).*?(\\d+(?:\\.\\d+)?)\\s*m\\s*(?:long|length).*?track(?:[\\s,]*(.*))?$",
+      "call": { "fn": "GenerateScenarioFromPrompt", "args": ["$2:float", "$1:float", "$3?:string"] }
+    },
+
     { "name": "delete-rows-range",
       "regex": "\\bdelete\\s+rows\\s+(\\d+)\\.{2}(\\d+)\\b",
       "call": { "fn": "DeleteRowsRange", "args": ["$1:int", "$2:int"] } },
+
     { "name": "offset-rows-x",
       "regex": "\\boffset\\s+x\\s+rows\\s+(\\d+)\\.{2}(\\d+)\\s+by\\s+([\\-\\d\\.]+)m\\b",
       "call": { "fn": "OffsetRowsX", "args": ["$1:int", "$2:int", "$3:float"] } },
+
     { "name": "offset-rows-y",
       "regex": "\\boffset\\s+y\\s+rows\\s+(\\d+)\\.{2}(\\d+)\\s+by\\s+([\\-\\d\\.]+)m\\b",
       "call": { "fn": "OffsetRowsY", "args": ["$1:int", "$2:int", "$3:float"] } },
+
     { "name": "append-straight",
       "regex": "\\bappend\\s+straight\\s+([\\d\\.]+)m(?:\\s+step\\s+([\\d\\.]+)m)?\\b",
       "call": { "fn": "AppendStraight", "args": ["$1:float", "$2?:float"] } },
+
     { "name": "append-arc",
-      "regex": "\\bappend\\s+arc\\s+(left|right)\\s+(\\d+(?:\\.\\d+)?)deg\\b",
-      "call": { "fn": "AppendArc", "args": ["$1", "$2:float"] } },
+      "regex": "\\bappend\\s+arc\\s+(left|right)\\s+(\\d+(?:\\.\\d+)?)\\s*(?:deg|degree|degrees)(?:\\s+len\\s+([\\d\\.]+)m)?(?:\\s+steps\\s+(\\d+))?\\b",
+      "call": { "fn": "AppendArc", "args": ["$1", "$2:float", "$3?:float", "$4?:int"] } },
+
     { "name": "straighten",
       "regex": "\\bstraighten\\s+rows\\s+(\\d+)\\.{2}(\\d+)\\b",
       "call": { "fn": "StraightenRows", "args": ["$1:int", "$2:int"] } }
