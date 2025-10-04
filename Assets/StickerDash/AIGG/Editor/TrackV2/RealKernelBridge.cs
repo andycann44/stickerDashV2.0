@@ -12,6 +12,7 @@ namespace Aim2Pro.AIGG
     {
         private static readonly Regex TileRx = new Regex(@"^tile_r(?<r>\d+)_c(?<c>\d+)$", RegexOptions.IgnoreCase);
 
+        // ---------- TRACK ROOT / TILES ----------
         private static Transform FindOrCreateTrack()
         {
             var go = GameObject.Find("A2P_Track") ?? GameObject.Find("Track");
@@ -26,12 +27,15 @@ namespace Aim2Pro.AIGG
             if (root)
                 foreach (Transform c in root)
                     if (TileRx.IsMatch(c.name)) return c.gameObject;
+
+            // fallback cube (1 x 0.2 x 1)
             var g = GameObject.CreatePrimitive(PrimitiveType.Cube);
             g.name = "tile_template";
             g.transform.localScale = new Vector3(1f, 0.2f, 1f);
             Undo.RegisterCreatedObjectUndo(g, "Create Tile Template");
             return g;
         }
+
         private static void ClearExistingTiles(Transform root)
         {
             var toDelete = new List<GameObject>();
@@ -42,7 +46,21 @@ namespace Aim2Pro.AIGG
             foreach (var g in toDelete) Object.DestroyImmediate(g);
         }
 
-        // ---------- helpers ----------
+        // Measure tile footprint (X width, Z depth) from mesh/collider (world-space aware enough for default tiles)
+        private static Vector2 MeasureTileXZ(GameObject g)
+        {
+            var mf = g.GetComponent<MeshFilter>();
+            if (mf && mf.sharedMesh != null)
+            {
+                var b = mf.sharedMesh.bounds; // local
+                var ls = g.transform.localScale;
+                return new Vector2(Mathf.Abs(b.size.x * ls.x), Mathf.Abs(b.size.z * ls.z));
+            }
+            var r = g.GetComponentInChildren<Renderer>();
+            if (r) { var s = r.bounds.size; return new Vector2(s.x, s.z); }
+            return new Vector2(1f, 1f);
+        }
+
         private static Dictionary<int, List<Transform>> GetRowGroups(Transform trackRoot)
         {
             var rows = new Dictionary<int, List<Transform>>();
@@ -77,14 +95,14 @@ namespace Aim2Pro.AIGG
             return 1f;
         }
 
-        // ---------- scenario ----------
+        // ---------- SCENARIO ----------
         private class Scenario
         {
             public float lengthM, widthM;
-            public float missingPct = 0.10f;
+            public float missingPct = 0.10f;  // holes only when we remove tiles
             public float bendMaxDeg = 10f;
             public bool  randomBends = true;
-            public bool  split;
+            public bool  split;               // fork then rejoin
             public float verticalAmp;
             public bool  lowSpeedStart;
             public bool  simple;
@@ -96,85 +114,107 @@ namespace Aim2Pro.AIGG
             var root = FindOrCreateTrack();
             var opt  = ParseExtras(lengthM, widthM, extras ?? "");
             var tmpl = GetAnyTileTemplate(root);
+            var tileSize = MeasureTileXZ(tmpl);    // exact footprint
 
-            // exact pitches to hit requested meters
-            int rows = Mathf.Max(2, Mathf.RoundToInt(opt.lengthM));
-            int cols = Mathf.Max(2, Mathf.RoundToInt(opt.widthM));
-            float rowPitch = opt.lengthM / (rows - 1);
-            float colPitch = opt.widthM / (cols - 1);
-            float halfCols = (cols - 1) * 0.5f;
+            // --- derive rows/cols so tiles TOUCH ---
+            int cols = Mathf.Max(2, Mathf.RoundToInt(opt.widthM / Mathf.Max(0.0001f, tileSize.x)) + 1);
+            int rows = Mathf.Max(2, Mathf.RoundToInt(opt.lengthM / Mathf.Max(0.0001f, tileSize.y)) + 1);
+            float colPitch = tileSize.x;  // contiguous sideways
+            float rowPitch = tileSize.y;  // contiguous forward
+            float actualW  = (cols - 1) * colPitch;
+            float actualL  = (rows - 1) * rowPitch;
 
-            // split section: ~20% starting at 1/3
-            int splitStart = opt.split ? Mathf.RoundToInt(rows * 0.33f) : int.MaxValue;
-            int splitLen   = opt.split ? Mathf.RoundToInt(rows * 0.20f) : 0;
-            float splitOffsetX = opt.widthM + colPitch;
+            // split: diverge → parallel → rejoin
+            int divergeStart   = opt.split ? Mathf.RoundToInt(rows * 0.30f) : int.MaxValue;
+            int divergeLen     = opt.split ? Mathf.RoundToInt(rows * 0.10f) : 0;
+            int plateauLen     = opt.split ? Mathf.RoundToInt(rows * 0.10f) : 0;
+            int rejoinLen      = opt.split ? divergeLen : 0;
+            int divergeEnd     = divergeStart + divergeLen;
+            int plateauEnd     = divergeEnd   + plateauLen;
+            int rejoinEnd      = plateauEnd   + rejoinLen;
+            float branchSep    = actualW + colPitch; // keep a full width gap between branches
 
-            var rng = new System.Random(opt.seed);
-            float yawDeg = 0f;
-            int bendEvery = opt.simple ? 20 : 12;     // gentler cadence in simple mode
+            var rng     = new System.Random(opt.seed);
+            float yaw   = 0f;
+            int bendN   = opt.simple ? 20 : 12;
             float bendMax = opt.simple ? Mathf.Min(opt.bendMaxDeg, 12f) : opt.bendMaxDeg;
 
-            // build
+            // build continuous path
             ClearExistingTiles(root);
-            Undo.RegisterFullObjectHierarchyUndo(root.gameObject, "Generate Scenario");
+            Undo.RegisterFullObjectHierarchyUndo(root.gameObject, "Generate Scenario (contiguous)");
 
-            Vector3 center = Vector3.zero; // <-- accumulate here
-
+            Vector3 center = Vector3.zero;
             for (int r = 1; r <= rows; r++)
             {
                 // bends
-                if (opt.randomBends && r % bendEvery == 0)
+                if (opt.randomBends && r % bendN == 0)
                 {
                     float limit = bendMax;
                     if (opt.lowSpeedStart && r < rows * 0.2f) limit *= 0.4f;
-                    yawDeg += (float)((rng.NextDouble() * 2.0 - 1.0) * limit);
+                    yaw += (float)((rng.NextDouble() * 2.0 - 1.0) * limit);
                 }
 
-                // local frame
-                Quaternion rot = Quaternion.Euler(0f, yawDeg, 0f);
-                Vector3 forward = rot * Vector3.forward;
-                Vector3 right   = rot * Vector3.right;
+                // frame + advance
+                Quaternion rot = Quaternion.Euler(0f, yaw, 0f);
+                Vector3 fwd = rot * Vector3.forward;
+                Vector3 right = rot * Vector3.right;
+                if (r == 1) center = Vector3.zero; else center += fwd * rowPitch;
 
-                // move forward one pitch each row (continuous path)
-                if (r == 1) center = Vector3.zero;
-                else        center += forward * rowPitch;
+                // vertical
+                center.y = opt.verticalAmp > 0f ? Mathf.Sin(r * Mathf.PI / 50f) * opt.verticalAmp : 0f;
 
-                // vertical variation
-                float yRow = opt.verticalAmp > 0f ? Mathf.Sin(r * Mathf.PI / 50f) * opt.verticalAmp : 0f;
-                center.y = yRow;
-
-                // place main line
+                // contiguous main row (0..cols-1 inclusive)
+                float half = (cols - 1) * 0.5f;
                 for (int c = 0; c < cols; c++)
                 {
-                    if (opt.missingPct > 0f && rng.NextDouble() < opt.missingPct) continue;
+                    if (opt.missingPct > 0f && rng.NextDouble() < opt.missingPct) continue; // holes only when chosen
                     var g = Object.Instantiate(tmpl, root);
                     g.name = $"tile_r{r}_c{c}";
-                    g.transform.position = center + right * ((c - halfCols) * colPitch);
+                    g.transform.position = center + right * ((c - half) * colPitch);
                     g.transform.rotation = rot;
                     g.transform.localScale = tmpl.transform.localScale;
                     EditorUtility.SetDirty(g);
                 }
 
-                // split branch (slightly denser)
-                if (r >= splitStart && r < splitStart + splitLen)
+                // branch offset (diverge/plateau/rejoin)
+                if (opt.split)
                 {
-                    double miss = Mathf.Clamp01(opt.missingPct - 0.05f);
-                    for (int c = 0; c < cols; c++)
+                    float off = 0f;
+                    if (r >= divergeStart && r < divergeEnd)
                     {
-                        if (miss > 0 && rng.NextDouble() < miss) continue;
-                        var g = Object.Instantiate(tmpl, root);
-                        g.name = $"tile_r{r}_c{c}";
-                        g.transform.position = center + right * ((c - halfCols) * colPitch + splitOffsetX);
-                        g.transform.rotation = rot;
-                        g.transform.localScale = tmpl.transform.localScale;
-                        EditorUtility.SetDirty(g);
+                        float t = Mathf.InverseLerp(divergeStart, divergeEnd, r);
+                        off = Mathf.SmoothStep(0f, branchSep, t);
+                    }
+                    else if (r >= divergeEnd && r < plateauEnd)
+                    {
+                        off = branchSep;
+                    }
+                    else if (r >= plateauEnd && r < rejoinEnd)
+                    {
+                        float t = Mathf.InverseLerp(plateauEnd, rejoinEnd, r);
+                        off = Mathf.SmoothStep(branchSep, 0f, t);
+                    }
+
+                    if (off > 0f)
+                    {
+                        double branchMiss = Mathf.Clamp01(opt.missingPct + 0.05f); // branch a bit worse
+                        for (int c = 0; c < cols; c++)
+                        {
+                            if (branchMiss > 0 && rng.NextDouble() < branchMiss) continue;
+                            var g = Object.Instantiate(tmpl, root);
+                            g.name = $"tile_r{r}_c{c}";
+                            g.transform.position = center + right * ((c - half) * colPitch + off);
+                            g.transform.rotation = rot;
+                            g.transform.localScale = tmpl.transform.localScale;
+                            EditorUtility.SetDirty(g);
+                        }
                     }
                 }
             }
 
             if (tmpl.name == "tile_template") Object.DestroyImmediate(tmpl);
             EditorUtility.SetDirty(root);
-            Debug.Log($"[Kernel] Scenario OK: {rows}x{cols}, rowPitch={rowPitch:F2}m, colPitch={colPitch:F2}m, splitRows={splitLen}");
+            Debug.Log($"[Kernel] Built contiguous track ~{actualL:F1}m x {actualW:F1}m from tile size {tileSize.x:F2}x{tileSize.y:F2}m, rows={rows}, cols={cols}, split={(opt.split ? "yes" : "no")}.");
         }
 
         private static Scenario ParseExtras(float lengthM, float widthM, string extras)
@@ -200,7 +240,7 @@ namespace Aim2Pro.AIGG
             return s;
         }
 
-        // ---- other ops unchanged (append-straight/arc, offsets, etc.) ----
+        // ---- other ops unchanged (append/split helpers for future) ----
         public static void DeleteRowsRange(int start, int end)
         {
             var root = FindTrack(); if (!root) return;
