@@ -7,8 +7,7 @@ namespace Aim2Pro.AIGG.TrackV2
 {
     public class TrackLabV2Window : EditorWindow
     {
-        private string nlInput =
-@"create 300 m by 6 m track with 10% tiles missing, random bends up to 30 degrees either way, split min 0.5w, slight ups and downs, low speed, simple";
+        private string nlInput = @"create 300 m by 6 m track with 10% tiles missing, random bends up to 30 degrees either way, split min 0.5w, slight ups and downs, low speed, simple";
         private string log = "";
         private Vector2 logScroll;
         private V2CommandEngine engine;
