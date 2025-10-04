@@ -12,6 +12,25 @@ namespace Aim2Pro.AIGG.TrackV2
 
     public class V2CommandEngine
     {
+        // Robust 'create <len> m by <width> m <extras>' recognizer
+        // (also accepts 'build'/'make' and numbers like '250m')
+        static readonly System.Text.RegularExpressions.Regex RxCreateLW =
+            new System.Text.RegularExpressions.Regex(
+                @"\b(?:create|build|make)\s+(\d+)\s*(?:m|meter|meters|metre|metres)?\s*(?:by|x)\s*(\d+)\s*(?:m|meter|meters|metre|metres)?(?:\s*(.*))?$",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        void HardcodedCreateRecognizer(string nl, System.Collections.Generic.List<PlannedCall> planned, System.Action<string> log)
+        {
+            var text = nl ?? string.Empty;
+            var m = RxCreateLW.Match(text);
+            if (!m.Success) return;
+            int length = int.Parse(m.Groups[1].Value);
+            int width  = int.Parse(m.Groups[2].Value);
+            string extras = (m.Groups[3].Success ? m.Groups[3].Value : string.Empty).Trim();
+            planned.Add(new PlannedCall("GenerateScenarioFromPrompt", new object[]{ length, width, extras }));
+            log?.Invoke($"Matched: scenario-create → GenerateScenarioFromPrompt({length}, {width}, {extras})");
+        }
+    
         private readonly Action<string> log;
         private CommandSpec spec;
         private readonly List<(CommandRule rule, object[] args)> planned = new();
@@ -28,6 +47,8 @@ namespace Aim2Pro.AIGG.TrackV2
 
         public void Parse(string nl)
         {
+            try { HardcodedCreateRecognizer(nl, planned, Log); } catch {}
+
             if (spec?.commands == null) { log("No rules loaded."); return; }
             planned.Clear();
 
