@@ -731,6 +731,89 @@ namespace Aim2Pro.AIGG
         }
 
 
+        
+        /// <summary>
+        /// Ensures the first N rows have NO missing tiles (fills gaps between min..max column indices present in each row).
+        /// Works with tiles named "tile_r{row}_c{col}".
+        /// </summary>
+        public static void NoGapsInFirstRows(int rows)
+        {
+            var root = FindTrack(); if (!root) { Debug.LogWarning("[Kernel] No track root."); return; }
+            var map  = GetRows(root); if (map.Count==0) { Debug.LogWarning("[Kernel] No tiles."); return; }
+            var keys = new List<int>(map.Keys); keys.Sort();
+            int limit = Mathf.Clamp(rows, 0, keys.Count);
+            if (limit==0) { Debug.LogWarning("[Kernel] No rows to fill."); return; }
+
+            // Estimate column pitch from any row with consecutive columns; fallback to tile width.
+            float colPitch = 1f; bool got=false;
+            foreach (var rk in keys)
+            {
+                var list = map[rk];
+                var byCol = new List<(int c, Transform t)>();
+                foreach (var t in list)
+                {
+                    var mc = System.Text.RegularExpressions.Regex.Match(t.name, @"_c(\d+)$");
+                    if (mc.Success) byCol.Add((int.Parse(mc.Groups[1].Value), t));
+                }
+                byCol.Sort((a,b)=>a.c.CompareTo(b.c));
+                for (int i=1;i<byCol.Count;i++)
+                    if (byCol[i].c==byCol[i-1].c+1) { colPitch = Vector3.Distance(byCol[i].t.position, byCol[i-1].t.position); got=true; break; }
+                if (got) break;
+            }
+            if (!got)
+            {
+                var any = AnyTile(root);
+                var sz  = MeasureXZ(any);
+                colPitch = (sz.x>1e-4f) ? sz.x : 1f;
+            }
+
+            var templateGO = AnyTile(root);
+            if (!templateGO) { Debug.LogWarning("[Kernel] No template tile found to clone."); return; }
+            var templateScale = templateGO.transform.localScale;
+
+            Undo.RegisterFullObjectHierarchyUndo(root.gameObject, "NoGapsInFirstRows");
+            int filled=0;
+
+            for (int i=0;i<limit;i++)
+            {
+                int r = keys[i];
+                if (!map.TryGetValue(r, out var tiles) || tiles==null || tiles.Count==0) continue;
+
+                // Sort row by column index; detect min/max, base transform from leftmost.
+                var sorted = new List<Transform>(tiles);
+                sorted.Sort((a,b)=> ExtractCol(a.name).CompareTo(ExtractCol(b.name)));
+                int minC=int.MaxValue, maxC=int.MinValue;
+                var have = new HashSet<int>();
+                foreach (var t in sorted)
+                {
+                    int c = ExtractCol(t.name);
+                    have.Add(c); if (c<minC) minC=c; if (c>maxC) maxC=c;
+                }
+                if (minC==int.MaxValue) continue;
+
+                var baseT = sorted[0];
+                int baseCol = ExtractCol(baseT.name);
+                Vector3 right = baseT.right; right.y=0; if (right.sqrMagnitude<1e-6f) right = Vector3.right;
+                Quaternion rot = baseT.rotation;
+                Vector3 basePos = baseT.position;
+
+                for (int c=minC; c<=maxC; c++)
+                {
+                    if (have.Contains(c)) continue;
+                    var clone = Object.Instantiate(baseT.gameObject, baseT.parent ? baseT.parent : root);
+                    clone.name = $"tile_r{r}_c{c}";
+                    clone.transform.position = basePos + right.normalized * ((c - baseCol) * colPitch);
+                    clone.transform.rotation = rot;
+                    clone.transform.localScale = templateScale;
+                    EditorUtility.SetDirty(clone);
+                    filled++;
+                }
+            }
+            EditorUtility.SetDirty(root.gameObject);
+            Debug.Log($"[Kernel] Filled gaps in first {limit} rows. Created {filled} tiles.");
+        }
+    
+
         public static void DeleteRowsRange(int start, int end)
         {
             var root = FindTrack(); if (!root) return;
