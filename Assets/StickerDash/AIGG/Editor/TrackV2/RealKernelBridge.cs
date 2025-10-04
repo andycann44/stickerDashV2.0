@@ -269,6 +269,11 @@ namespace Aim2Pro.AIGG
             EditorUtility.SetDirty(meshGO); EditorUtility.SetDirty(root.gameObject);
             Debug.Log($"[Kernel] Built clean mesh (no gaps). verts={verts.Count}, tris={tris.Count/3}, replaceTiles={replace}");
         }
+        public static void AppendStraight(float distance)
+            => AppendStraight(distance, 1f);
+
+        public static void AppendArc(string side, float deg)
+            => AppendArc(side, deg, 0f, 0);
     }
 }
 #endif
