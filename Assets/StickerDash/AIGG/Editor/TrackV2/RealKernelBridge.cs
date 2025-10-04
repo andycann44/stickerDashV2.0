@@ -814,6 +814,20 @@ namespace Aim2Pro.AIGG
         }
     
 
+        
+        /// <summary>Delete the baked A2P_TrackMesh (and its mesh) without touching tiles.</summary>
+        public static void ClearTrackMesh(bool deleteGO=true)
+        {
+            var go = GameObject.Find("A2P_TrackMesh");
+            if (!go) { Debug.Log("[Kernel] No baked mesh to clear."); return; }
+            var mf = go.GetComponent<MeshFilter>();
+            if (mf && mf.sharedMesh) mf.sharedMesh = null;
+            var mc = go.GetComponent<MeshCollider>();
+            if (mc && mc.sharedMesh) mc.sharedMesh = null;
+            if (deleteGO) Object.DestroyImmediate(go);
+            Debug.Log("[Kernel] Cleared baked mesh.");
+        }
+
         public static void DeleteRowsRange(int start, int end)
         {
             var root = FindTrack(); if (!root) return;
