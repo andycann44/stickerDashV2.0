@@ -8,15 +8,10 @@ namespace Aim2Pro.AIGG.TrackV2
     public class TrackLabV2Window : EditorWindow
     {
         private string nlInput =
-@"append straight 20m
-append arc left 45deg
-offset x rows 3..8 by 0.5m
-delete rows 10..12";
+@"create 300 m b 6 m track with 10% tiles missing, random bends up to 30 degrees either way, split, slight ups and downs, low speed, simple";
         private string log = "";
         private Vector2 logScroll;
         private V2CommandEngine engine;
-        private bool rulesLoaded;
-        private bool showTools;
 
         [MenuItem("Window/Aim2Pro/Track Creator/Track Lab v2")]
         public static void Open() => GetWindow<TrackLabV2Window>("Track Lab v2");
@@ -25,43 +20,27 @@ delete rows 10..12";
         {
             engine = new V2CommandEngine(AddLog);
             engine.LoadRules();
-            rulesLoaded = true;
         }
 
-        private void AddLog(string line)
-        {
-            log += line + "\n";
-            Repaint();
-        }
+        private void AddLog(string line) { log += line + "\n"; Repaint(); }
 
         private void OnGUI()
         {
-            GUILayout.Label("Natural Language", EditorStyles.boldLabel);
-            nlInput = EditorGUILayout.TextArea(nlInput, GUILayout.MinHeight(90));
-
-            using (new EditorGUILayout.HorizontalScope())
+            // Toolbar
+            using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                if (GUILayout.Button("Parse", GUILayout.Height(24))) engine.Parse(nlInput);
-                if (GUILayout.Button("Apply", GUILayout.Height(24))) engine.Apply();
-                if (GUILayout.Button("Clear Log", GUILayout.Height(24))) log = "";
+                if (GUILayout.Button("Parse", EditorStyles.toolbarButton)) engine.Parse(nlInput);
+                if (GUILayout.Button("Apply", EditorStyles.toolbarButton)) engine.Apply();
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button("Analyze", EditorStyles.toolbarButton)) TrackAnalyzer.AnalyzeAndWriteReport();
+                if (GUILayout.Button("Snapshot", EditorStyles.toolbarButton)) TrackAnalyzer.SaveTopDownSnapshot();
+                if (GUILayout.Button("Clear Tiles", EditorStyles.toolbarButton)) ClearTiles();
+                if (GUILayout.Button("Bake Clean Mesh (no gaps)", EditorStyles.toolbarButton)) Aim2Pro.AIGG.Kernel.BuildSplineFromTrack(0f, 0f, 0.2f, true);
             }
 
             GUILayout.Space(6);
-            showTools = EditorGUILayout.Foldout(showTools, "Tools (in-window)");
-            if (showTools)
-            {
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    if (GUILayout.Button("Analyze Track", GUILayout.Height(20)))
-                        TrackAnalyzer.AnalyzeAndWriteReport();
-
-                    if (GUILayout.Button("Top-Down Snapshot", GUILayout.Height(20)))
-                        TrackAnalyzer.SaveTopDownSnapshot();
-
-                    if (GUILayout.Button("Clear Tiles", GUILayout.Height(20)))
-                        ClearTilesInTrackRoot();
-                }
-            }
+            GUILayout.Label("Natural Language", EditorStyles.boldLabel);
+            nlInput = EditorGUILayout.TextArea(nlInput, GUILayout.MinHeight(90));
 
             GUILayout.Space(6);
             GUILayout.Label("Log", EditorStyles.boldLabel);
@@ -70,12 +49,17 @@ delete rows 10..12";
             EditorGUILayout.EndScrollView();
 
             GUILayout.Space(6);
-            EditorGUILayout.HelpBox("v2 is data-driven: edit Assets/StickerDash/AIGG/Resources/TrackV2/commands.json", MessageType.Info);
-            if (!rulesLoaded)
-                EditorGUILayout.HelpBox("Commands not loaded.", MessageType.Warning);
+            // Quick kernel check
+            var k = System.AppDomain.CurrentDomain.GetAssemblies();
+            bool hasBaker = false;
+            foreach (var a in k)
+                foreach (var t in a.GetTypes())
+                    if (t.FullName == "Aim2Pro.AIGG.Kernel" && t.GetMethod("BuildSplineFromTrack", System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.Static) != null)
+                        hasBaker = true;
+            if (!hasBaker) EditorGUILayout.HelpBox("Kernel.BuildSplineFromTrack not found. Recompile expected after patch.", MessageType.Warning);
         }
 
-        private static void ClearTilesInTrackRoot()
+        private static void ClearTiles()
         {
             var go = GameObject.Find("A2P_Track") ?? GameObject.Find("Track");
             if (!go) { Debug.LogWarning("[TrackLabV2] Track root not found."); return; }
@@ -84,7 +68,7 @@ delete rows 10..12";
             Undo.RegisterFullObjectHierarchyUndo(root.gameObject, "Clear Track Tiles");
             var del = new System.Collections.Generic.List<GameObject>();
             foreach (Transform c in root) if (rx.IsMatch(c.name)) del.Add(c.gameObject);
-            foreach (var g in del) DestroyImmediate(g);
+            foreach (var g in del) Object.DestroyImmediate(g);
             Debug.Log($"[TrackLabV2] Cleared {del.Count} tiles under {root.name}.");
         }
     }
