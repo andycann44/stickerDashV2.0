@@ -27,10 +27,16 @@ namespace Aim2Pro.AIGG.TrackV2
             {
                 InvokeOn(t, fn, args, allowOptional: true);
             }
-            catch (MissingMethodException)
+            catch (TargetInvocationException tie)
             {
-                Debug.LogWarning($"[TrackV2] Real kernel missing '{fn}({args?.Length ?? 0} args)'. Using stub.");
-                InvokeOn(typeof(StubKernel), fn, args, allowOptional: true);
+                var ie = tie.InnerException;
+                Debug.LogError($"[TrackV2] {fn} threw {ie?.GetType().Name}: {ie?.Message}\n{ie?.StackTrace}");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[TrackV2] {fn} failed: {ex}");
+                throw;
             }
         }
 
@@ -39,7 +45,6 @@ namespace Aim2Pro.AIGG.TrackV2
             if (_resolved) return _targetType;
             _resolved = true;
 
-            // 1) Exact full name across all assemblies
             _targetType = FindTypeInAllAssemblies("Aim2Pro.AIGG.Kernel");
             if (IsGood(_targetType))
             {
@@ -47,7 +52,6 @@ namespace Aim2Pro.AIGG.TrackV2
                 return _targetType;
             }
 
-            // 2) Any type named 'Kernel' inside Aim2Pro.AIGG
             _targetType = AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(SafeGetTypes)
                 .FirstOrDefault(t => t.IsClass && t.Namespace == "Aim2Pro.AIGG" && t.Name == "Kernel");
@@ -57,7 +61,6 @@ namespace Aim2Pro.AIGG.TrackV2
                 return _targetType;
             }
 
-            // 3) Fallback: any type with key methods
             string[] mustHave = { "AppendStraight", "AppendArc", "DeleteRowsRange", "OffsetRowsX", "OffsetRowsY", "StraightenRows" };
             foreach (var t in AppDomain.CurrentDomain.GetAssemblies().SelectMany(SafeGetTypes))
             {
