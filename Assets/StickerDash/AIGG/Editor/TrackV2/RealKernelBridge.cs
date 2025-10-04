@@ -179,7 +179,7 @@ namespace Aim2Pro.AIGG
             for (int i=0;i<rowsStart;i++,row++)
             {
                 var rot = Quaternion.Euler(0, yawDeg, 0);
-                placeRow(row, centerPos, rot, holePct: 0.05f, branchOffset: 0f);
+                placeRow(row, centerPos, rot,  0.05f,  0f);
                 centerPos += (rot * Vector3.forward) * rowPitch;
             }
 
@@ -192,7 +192,7 @@ namespace Aim2Pro.AIGG
                 y     = Mathf.Sin(t * Mathf.PI) * 2.0f;    // up then slightly down
                 var rot = Quaternion.Euler(0, yawDeg, 0);
                 var pos = new Vector3(centerPos.x, y, centerPos.z);
-                placeRow(row, pos, rot, holePct: 0.10f, branchOffset: 0f);
+                placeRow(row, pos, rot,  0.10f,  0f);
                 centerPos = pos + (rot * Vector3.forward) * rowPitch;
             }
 
@@ -203,7 +203,7 @@ namespace Aim2Pro.AIGG
                 // small random yaw jiggle within ±10
                 yawDeg = Mathf.Clamp(yawDeg + (Rand01()*2f-1f)*4f, -10f, 20f);
                 var rot = Quaternion.Euler(0, yawDeg, 0);
-                placeRow(row, centerPos, rot, holePct: 0.15f, branchOffset: 0f);
+                placeRow(row, centerPos, rot,  0.15f,  0f);
                 centerPos += (rot * Vector3.forward) * rowPitch;
             }
 
@@ -216,13 +216,13 @@ namespace Aim2Pro.AIGG
                 var rot = Quaternion.Euler(0, yawDeg, 0);
                 float t = (float)i / Mathf.Max(1, diverge-1);
                 float off = Mathf.SmoothStep(0f, splitSep, t);
-                placeRow(row, centerPos, rot, holePct: 0.12f, branchOffset: off);
+                placeRow(row, centerPos, rot,  0.12f,  off);
                 centerPos += (rot * Vector3.forward) * rowPitch;
             }
             for (int i=0;i<plateau;i++,row++)
             {
                 var rot = Quaternion.Euler(0, yawDeg, 0);
-                placeRow(row, centerPos, rot, holePct: 0.12f, branchOffset: splitSep);
+                placeRow(row, centerPos, rot,  0.12f,  splitSep);
                 centerPos += (rot * Vector3.forward) * rowPitch;
             }
             for (int i=0;i<converge;i++,row++)
@@ -230,7 +230,7 @@ namespace Aim2Pro.AIGG
                 var rot = Quaternion.Euler(0, yawDeg, 0);
                 float t = (float)i / Mathf.Max(1, converge-1);
                 float off = Mathf.SmoothStep(splitSep, 0f, t);
-                placeRow(row, centerPos, rot, holePct: 0.12f, branchOffset: off);
+                placeRow(row, centerPos, rot,  0.12f,  off);
                 centerPos += (rot * Vector3.forward) * rowPitch;
             }
 
@@ -242,7 +242,7 @@ namespace Aim2Pro.AIGG
                 // go left to +25 then back to -25 along a smooth curve
                 yawDeg = Mathf.Sin(t * Mathf.PI) * 25f;
                 var rot = Quaternion.Euler(0, yawDeg, 0);
-                placeRow(row, centerPos, rot, holePct: 0.08f, branchOffset: 0f);
+                placeRow(row, centerPos, rot,  0.08f,  0f);
                 centerPos += (rot * Vector3.forward) * rowPitch;
             }
 
@@ -257,7 +257,7 @@ namespace Aim2Pro.AIGG
                 float t = (float)i / Mathf.Max(1, turnRows-1);
                 yawDeg = Mathf.Lerp(yawStart, yawStart - 70f, t); // sharp right
                 var rot = Quaternion.Euler(0, yawDeg, 0);
-                placeRow(row, centerPos, rot, holePct: 0.08f, branchOffset: 0f);
+                placeRow(row, centerPos, rot,  0.08f,  0f);
 
                 // Guard rail on outside (right side of the curve)
                 // Put a slim cube along the outer edge of the row
@@ -278,7 +278,7 @@ namespace Aim2Pro.AIGG
             for (int i=0;i<straightRows;i++,row++)
             {
                 var rot = Quaternion.Euler(0, yawDeg, 0);
-                placeRow(row, centerPos, rot, holePct: 0.18f, branchOffset: 0f);
+                placeRow(row, centerPos, rot,  0.18f,  0f);
                 centerPos += (rot * Vector3.forward) * rowPitch;
             }
 
@@ -541,32 +541,39 @@ namespace Aim2Pro.AIGG
         /// Bake a mesh that covers ONLY the tiles that exist, so missing tiles remain as holes.
         /// Uses per-row trapezoids to keep clean edges on curves. Adds MeshCollider.
         /// </summary>
+        
+        /// <summary>
+        /// Bake a mesh that covers ONLY existing tiles, so missing tiles remain as holes.
+        /// Uses per-row trapezoids to keep clean edges on curves. Adds MeshCollider.
+        /// </summary>
         public static void BuildMeshFromTilesPreserveHoles(float thickness = 0.2f, bool replace = true)
         {
             var root = FindTrack(); if (!root) { Debug.LogWarning("[Kernel] No track root."); return; }
             var rows = GetRows(root); if (rows.Count < 1) { Debug.LogWarning("[Kernel] No tiles found."); return; }
 
-            // Gather present (row,col) and per-row transforms
+            // Collect present (row,col) indices
             var rowKeys = new List<int>(rows.Keys); rowKeys.Sort();
-            var present = new HashSet<string>(); // "r<c>_c<r>"
-            int minC=int.MaxValue, maxC=int.MinValue;
+            var present = new HashSet<string>(); // key = "row:col"
+            int minC = int.MaxValue, maxC = int.MinValue;
+
             foreach (var rk in rowKeys)
             {
                 foreach (var t in rows[rk])
                 {
-                    var m = System.Text.RegularExpressions.Regex.Match(t.name, @"_r(\d+)_c(\d+)$|^tile_r(\d+)_c(\d+)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                    if (!m.Success) { m = System.Text.RegularExpressions.Regex.Match(t.name, @"r(\d+)_c(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase); }
-                    int rIdx, cIdx;
-                    if (m.Success)
+                    var match  = System.Text.RegularExpressions.Regex.Match(t.name, @"_r(\d+)_c(\d+)$|^tile_r(\d+)_c(\d+)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    if (!match.Success)
                     {
-                        rIdx = rk; // we have rk already
-                        cIdx = int.Parse((m.Groups[2].Success ? m.Groups[2].Value : m.Groups[4].Value));
+                        var match2 = System.Text.RegularExpressions.Regex.Match(t.name, @"r(\d+)_c(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                        if (match2.Success) match = match2;
                     }
-                    else
+
+                    int cIdx = 0;
+                    if (match.Success)
                     {
-                        rIdx = rk; cIdx = 0;
+                        var g2 = match.Groups[2]; var g4 = match.Groups[4];
+                        cIdx = int.Parse(g2.Success ? g2.Value : (g4.Success ? g4.Value : "0"));
                     }
-                    present.Add(rIdx + ":" + cIdx);
+                    present.Add(rk + ":" + cIdx);
                     if (cIdx < minC) minC = cIdx;
                     if (cIdx > maxC) maxC = cIdx;
                 }
@@ -574,7 +581,7 @@ namespace Aim2Pro.AIGG
             if (minC == int.MaxValue) { Debug.LogWarning("[Kernel] No tile indices parsed."); return; }
             int colCount = maxC - minC + 1;
 
-            // Estimate column pitch from any row with consecutive columns
+            // Estimate column pitch from consecutive columns in any row
             float colPitch = 1f;
             bool gotPitch = false;
             foreach (var rk in rowKeys)
@@ -583,11 +590,11 @@ namespace Aim2Pro.AIGG
                 var byCol = new List<(int c, Transform t)>();
                 foreach (var t in list)
                 {
-                    var m = System.Text.RegularExpressions.Regex.Match(t.name, @"_c(\d+)$");
-                    if (m.Success) byCol.Add((int.Parse(m.Groups[1].Value), t));
+                    var mcMatch = System.Text.RegularExpressions.Regex.Match(t.name, @"_c(\d+)$");
+                    if (mcMatch.Success) byCol.Add((int.Parse(mcMatch.Groups[1].Value), t));
                 }
                 byCol.Sort((a,b)=>a.c.CompareTo(b.c));
-                for (int i=1;i<byCol.Count;i++)
+                for (int i = 1; i < byCol.Count; i++)
                 {
                     if (byCol[i].c == byCol[i-1].c + 1)
                     {
@@ -599,26 +606,26 @@ namespace Aim2Pro.AIGG
             }
             if (!gotPitch)
             {
-                // fall back to tile width
                 var any = AnyTile(root);
-                var sz = MeasureXZ(any);
+                var sz  = MeasureXZ(any);
                 colPitch = (sz.x > 1e-4f) ? sz.x : 1f;
             }
-            float halfCol = colPitch * 0.5f;
+            float halfCol   = colPitch * 0.5f;
             float halfIndex = (colCount - 1) * 0.5f;
 
-            // Row centers and right vectors
+            // Row centers and lateral vectors
             var centers = new List<Vector3>();
             foreach (var rk in rowKeys) centers.Add(Centroid(rows[rk]));
             var rights = new List<Vector3>();
             for (int i=0;i<centers.Count;i++)
             {
                 Vector3 fwd = (i==0) ? (centers[1]-centers[0])
-                    : (i==centers.Count-1 ? (centers[i]-centers[i-1]) : (centers[i+1]-centers[i-1])*0.5f);
-                fwd.y=0; if (fwd.sqrMagnitude < 1e-6f) fwd = Vector3.forward;
+                                     : (i==centers.Count-1 ? (centers[i]-centers[i-1]) : (centers[i+1]-centers[i-1])*0.5f);
+                fwd.y = 0; if (fwd.sqrMagnitude < 1e-6f) fwd = Vector3.forward;
                 rights.Add(Quaternion.Euler(0,90,0) * fwd.normalized);
             }
-            // Boundary centers between rows (E) and boundary laterals (L)
+
+            // Boundaries between rows (E) and their laterals (L)
             int n = centers.Count;
             var E = new List<Vector3>(n+1);
             var L = new List<Vector3>(n+1);
@@ -626,13 +633,13 @@ namespace Aim2Pro.AIGG
             {
                 if (i==0)
                 {
-                    Vector3 f = (centers[1]-centers[0]); f.y=0;
+                    Vector3 f = centers[1]-centers[0]; f.y=0;
                     E.Add(centers[0] - f.normalized * (f.magnitude*0.5f));
                     L.Add(rights[0]);
                 }
                 else if (i==n)
                 {
-                    Vector3 f = (centers[n-1]-centers[n-2]); f.y=0;
+                    Vector3 f = centers[n-1]-centers[n-2]; f.y=0;
                     E.Add(centers[n-1] + f.normalized * (f.magnitude*0.5f));
                     L.Add(rights[n-1]);
                 }
@@ -649,14 +656,14 @@ namespace Aim2Pro.AIGG
             var uvs   = new List<Vector2>();
             var tris  = new List<int>();
 
-            // Simple UVs: u across width, v along rows
+            // Build trapezoids per present tile
             for (int ri=0; ri<n; ri++)
             {
                 for (int c=minC; c<=maxC; c++)
                 {
                     if (!present.Contains(rowKeys[ri]+":"+c)) continue;
 
-                    float offset = ( (c - minC) - halfIndex ) * colPitch;
+                    float offset = ((c - minC) - halfIndex) * colPitch;
 
                     Vector3 topC = E[ri];      Vector3 topR = L[ri];
                     Vector3 botC = E[ri+1];    Vector3 botR = L[ri+1];
@@ -667,15 +674,16 @@ namespace Aim2Pro.AIGG
                     Vector3 BR = botC + botR * (offset + halfCol);
 
                     int vi = verts.Count;
-                    verts.Add(TL); uvs.Add(new Vector2(0, (float)ri/(float)Mathf.Max(1,n-1)));
-                    verts.Add(TR); uvs.Add(new Vector2(1, (float)ri/(float)Mathf.Max(1,n-1)));
-                    verts.Add(BL); uvs.Add(new Vector2(0, (float)(ri+1)/(float)Mathf.Max(1,n-1)));
-                    verts.Add(BR); uvs.Add(new Vector2(1, (float)(ri+1)/(float)Mathf.Max(1,n-1)));
+                    float v0 = (float)ri / Mathf.Max(1, n-1);
+                    float v1 = (float)(ri+1) / Mathf.Max(1, n-1);
+                    verts.Add(TL); uvs.Add(new Vector2(0, v0));
+                    verts.Add(TR); uvs.Add(new Vector2(1, v0));
+                    verts.Add(BL); uvs.Add(new Vector2(0, v1));
+                    verts.Add(BR); uvs.Add(new Vector2(1, v1));
 
                     tris.Add(vi+0); tris.Add(vi+1); tris.Add(vi+2);
                     tris.Add(vi+1); tris.Add(vi+3); tris.Add(vi+2);
 
-                    // thickness (simple skirt) if requested
                     if (thickness > 0.0001f)
                     {
                         int vj = verts.Count;
@@ -684,21 +692,20 @@ namespace Aim2Pro.AIGG
                         verts.Add(BL + Vector3.down*thickness); uvs.Add(new Vector2(0,1));
                         verts.Add(BR + Vector3.down*thickness); uvs.Add(new Vector2(1,1));
 
-                        // bottom (flip)
+                        // bottom
                         tris.Add(vj+2); tris.Add(vj+1); tris.Add(vj+0);
                         tris.Add(vj+2); tris.Add(vj+3); tris.Add(vj+1);
 
-                        // simple sides (TL)
-                        // left side
+                        // sides
                         tris.Add(vi+0); tris.Add(vj+0); tris.Add(vi+2);
                         tris.Add(vj+0); tris.Add(vj+2); tris.Add(vi+2);
-                        // right side
+
                         tris.Add(vi+1); tris.Add(vi+3); tris.Add(vj+1);
                         tris.Add(vi+3); tris.Add(vj+3); tris.Add(vj+1);
-                        // top side
+
                         tris.Add(vi+0); tris.Add(vi+1); tris.Add(vj+0);
                         tris.Add(vi+1); tris.Add(vj+1); tris.Add(vj+0);
-                        // bottom side
+
                         tris.Add(vi+2); tris.Add(vj+2); tris.Add(vi+3);
                         tris.Add(vj+2); tris.Add(vj+3); tris.Add(vi+3);
                     }
@@ -706,11 +713,11 @@ namespace Aim2Pro.AIGG
             }
 
             EnsureMeshCarrier(root, out var meshGO, out var mf, out var mr, out var mc);
-            var m = mf.sharedMesh; if (m == null) m = new Mesh(); else m.Clear();
-            m.name = "TrackMesh_PreserveHoles";
-            m.SetVertices(verts); m.SetUVs(0, uvs); m.SetTriangles(tris, 0, true);
-            m.RecalculateNormals(); m.RecalculateTangents(); m.RecalculateBounds();
-            mf.sharedMesh = m; mc.sharedMesh = m;
+            var mesh = mf.sharedMesh; if (mesh == null) mesh = new Mesh(); else mesh.Clear();
+            mesh.name = "TrackMesh_PreserveHoles";
+            mesh.SetVertices(verts); mesh.SetUVs(0, uvs); mesh.SetTriangles(tris, 0, true);
+            mesh.RecalculateNormals(); mesh.RecalculateTangents(); mesh.RecalculateBounds();
+            mf.sharedMesh = mesh; mc.sharedMesh = mesh;
             if (!mr.sharedMaterial) mr.sharedMaterial = new Material(Shader.Find("Standard")) { name = "A2P_Track_DefaultMat" };
 
             if (replace)
@@ -722,7 +729,7 @@ namespace Aim2Pro.AIGG
             EditorUtility.SetDirty(meshGO); EditorUtility.SetDirty(root.gameObject);
             Debug.Log($"[Kernel] Baked mesh preserving holes. verts={verts.Count}, tris={tris.Count/3}, replaceTiles={replace}");
         }
-    
+
 
         public static void DeleteRowsRange(int start, int end)
         {
