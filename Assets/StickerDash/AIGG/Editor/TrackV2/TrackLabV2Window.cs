@@ -35,7 +35,12 @@ namespace Aim2Pro.AIGG.TrackV2
                 if (GUILayout.Button("Analyze", EditorStyles.toolbarButton)) TrackAnalyzer.AnalyzeAndWriteReport();
                 if (GUILayout.Button("Snapshot", EditorStyles.toolbarButton)) TrackAnalyzer.SaveTopDownSnapshot();
                 if (GUILayout.Button("Clear Tiles", EditorStyles.toolbarButton)) ClearTiles();
-                if (GUILayout.Button("Bake Clean Mesh (no gaps)", EditorStyles.toolbarButton)) Aim2Pro.AIGG.Kernel.BuildSplineFromTrack(0f, 0f, 0.2f, true);
+                
+                if (GUILayout.Button("Bake Mesh (preserve holes)", EditorStyles.toolbarButton))
+                    Aim2Pro.AIGG.Kernel.BuildMeshFromTilesPreserveHoles(0.2f, true);
+                if (GUILayout.Button("Bake Clean Mesh (no gaps)", EditorStyles.toolbarButton))
+                    Aim2Pro.AIGG.Kernel.BuildSplineFromTrack(0f, 0f, 0.2f, true);
+if (GUILayout.Button("Bake Clean Mesh (no gaps)", EditorStyles.toolbarButton)) Aim2Pro.AIGG.Kernel.BuildSplineFromTrack(0f, 0f, 0.2f, true);
             }
 
             GUILayout.Space(6);

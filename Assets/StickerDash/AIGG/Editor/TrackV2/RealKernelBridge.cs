@@ -339,6 +339,194 @@ namespace Aim2Pro.AIGG
         }
 
         // ------ v1-style ops (used by rules) ------
+        
+        /// <summary>
+        /// Bake a mesh that covers ONLY the tiles that exist, so missing tiles remain as holes.
+        /// Uses per-row trapezoids to keep clean edges on curves. Adds MeshCollider.
+        /// </summary>
+        public static void BuildMeshFromTilesPreserveHoles(float thickness = 0.2f, bool replace = true)
+        {
+            var root = FindTrack(); if (!root) { Debug.LogWarning("[Kernel] No track root."); return; }
+            var rows = GetRows(root); if (rows.Count < 1) { Debug.LogWarning("[Kernel] No tiles found."); return; }
+
+            // Gather present (row,col) and per-row transforms
+            var rowKeys = new List<int>(rows.Keys); rowKeys.Sort();
+            var present = new HashSet<string>(); // "r<c>_c<r>"
+            int minC=int.MaxValue, maxC=int.MinValue;
+            foreach (var rk in rowKeys)
+            {
+                foreach (var t in rows[rk])
+                {
+                    var m = System.Text.RegularExpressions.Regex.Match(t.name, @"_r(\d+)_c(\d+)$|^tile_r(\d+)_c(\d+)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    if (!m.Success) { m = System.Text.RegularExpressions.Regex.Match(t.name, @"r(\d+)_c(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase); }
+                    int rIdx, cIdx;
+                    if (m.Success)
+                    {
+                        rIdx = rk; // we have rk already
+                        cIdx = int.Parse((m.Groups[2].Success ? m.Groups[2].Value : m.Groups[4].Value));
+                    }
+                    else
+                    {
+                        rIdx = rk; cIdx = 0;
+                    }
+                    present.Add(rIdx + ":" + cIdx);
+                    if (cIdx < minC) minC = cIdx;
+                    if (cIdx > maxC) maxC = cIdx;
+                }
+            }
+            if (minC == int.MaxValue) { Debug.LogWarning("[Kernel] No tile indices parsed."); return; }
+            int colCount = maxC - minC + 1;
+
+            // Estimate column pitch from any row with consecutive columns
+            float colPitch = 1f;
+            bool gotPitch = false;
+            foreach (var rk in rowKeys)
+            {
+                var list = rows[rk];
+                var byCol = new List<(int c, Transform t)>();
+                foreach (var t in list)
+                {
+                    var m = System.Text.RegularExpressions.Regex.Match(t.name, @"_c(\d+)$");
+                    if (m.Success) byCol.Add((int.Parse(m.Groups[1].Value), t));
+                }
+                byCol.Sort((a,b)=>a.c.CompareTo(b.c));
+                for (int i=1;i<byCol.Count;i++)
+                {
+                    if (byCol[i].c == byCol[i-1].c + 1)
+                    {
+                        colPitch = Vector3.Distance(byCol[i].t.position, byCol[i-1].t.position);
+                        gotPitch = true; break;
+                    }
+                }
+                if (gotPitch) break;
+            }
+            if (!gotPitch)
+            {
+                // fall back to tile width
+                var any = AnyTile(root);
+                var sz = MeasureXZ(any);
+                colPitch = (sz.x > 1e-4f) ? sz.x : 1f;
+            }
+            float halfCol = colPitch * 0.5f;
+            float halfIndex = (colCount - 1) * 0.5f;
+
+            // Row centers and right vectors
+            var centers = new List<Vector3>();
+            foreach (var rk in rowKeys) centers.Add(Centroid(rows[rk]));
+            var rights = new List<Vector3>();
+            for (int i=0;i<centers.Count;i++)
+            {
+                Vector3 fwd = (i==0) ? (centers[1]-centers[0])
+                    : (i==centers.Count-1 ? (centers[i]-centers[i-1]) : (centers[i+1]-centers[i-1])*0.5f);
+                fwd.y=0; if (fwd.sqrMagnitude < 1e-6f) fwd = Vector3.forward;
+                rights.Add(Quaternion.Euler(0,90,0) * fwd.normalized);
+            }
+            // Boundary centers between rows (E) and boundary laterals (L)
+            int n = centers.Count;
+            var E = new List<Vector3>(n+1);
+            var L = new List<Vector3>(n+1);
+            for (int i=0;i<=n;i++)
+            {
+                if (i==0)
+                {
+                    Vector3 f = (centers[1]-centers[0]); f.y=0;
+                    E.Add(centers[0] - f.normalized * (f.magnitude*0.5f));
+                    L.Add(rights[0]);
+                }
+                else if (i==n)
+                {
+                    Vector3 f = (centers[n-1]-centers[n-2]); f.y=0;
+                    E.Add(centers[n-1] + f.normalized * (f.magnitude*0.5f));
+                    L.Add(rights[n-1]);
+                }
+                else
+                {
+                    E.Add( (centers[i-1] + centers[i]) * 0.5f );
+                    Vector3 rL = rights[i-1] + rights[i];
+                    if (rL.sqrMagnitude < 1e-6f) rL = rights[i-1];
+                    L.Add(rL.normalized);
+                }
+            }
+
+            var verts = new List<Vector3>();
+            var uvs   = new List<Vector2>();
+            var tris  = new List<int>();
+
+            // Simple UVs: u across width, v along rows
+            for (int ri=0; ri<n; ri++)
+            {
+                for (int c=minC; c<=maxC; c++)
+                {
+                    if (!present.Contains(rowKeys[ri]+":"+c)) continue;
+
+                    float offset = ( (c - minC) - halfIndex ) * colPitch;
+
+                    Vector3 topC = E[ri];      Vector3 topR = L[ri];
+                    Vector3 botC = E[ri+1];    Vector3 botR = L[ri+1];
+
+                    Vector3 TL = topC + topR * (offset - halfCol);
+                    Vector3 TR = topC + topR * (offset + halfCol);
+                    Vector3 BL = botC + botR * (offset - halfCol);
+                    Vector3 BR = botC + botR * (offset + halfCol);
+
+                    int vi = verts.Count;
+                    verts.Add(TL); uvs.Add(new Vector2(0, (float)ri/(float)Mathf.Max(1,n-1)));
+                    verts.Add(TR); uvs.Add(new Vector2(1, (float)ri/(float)Mathf.Max(1,n-1)));
+                    verts.Add(BL); uvs.Add(new Vector2(0, (float)(ri+1)/(float)Mathf.Max(1,n-1)));
+                    verts.Add(BR); uvs.Add(new Vector2(1, (float)(ri+1)/(float)Mathf.Max(1,n-1)));
+
+                    tris.Add(vi+0); tris.Add(vi+1); tris.Add(vi+2);
+                    tris.Add(vi+1); tris.Add(vi+3); tris.Add(vi+2);
+
+                    // thickness (simple skirt) if requested
+                    if (thickness > 0.0001f)
+                    {
+                        int vj = verts.Count;
+                        verts.Add(TL + Vector3.down*thickness); uvs.Add(new Vector2(0,0));
+                        verts.Add(TR + Vector3.down*thickness); uvs.Add(new Vector2(1,0));
+                        verts.Add(BL + Vector3.down*thickness); uvs.Add(new Vector2(0,1));
+                        verts.Add(BR + Vector3.down*thickness); uvs.Add(new Vector2(1,1));
+
+                        // bottom (flip)
+                        tris.Add(vj+2); tris.Add(vj+1); tris.Add(vj+0);
+                        tris.Add(vj+2); tris.Add(vj+3); tris.Add(vj+1);
+
+                        // simple sides (TL)
+                        // left side
+                        tris.Add(vi+0); tris.Add(vj+0); tris.Add(vi+2);
+                        tris.Add(vj+0); tris.Add(vj+2); tris.Add(vi+2);
+                        // right side
+                        tris.Add(vi+1); tris.Add(vi+3); tris.Add(vj+1);
+                        tris.Add(vi+3); tris.Add(vj+3); tris.Add(vj+1);
+                        // top side
+                        tris.Add(vi+0); tris.Add(vi+1); tris.Add(vj+0);
+                        tris.Add(vi+1); tris.Add(vj+1); tris.Add(vj+0);
+                        // bottom side
+                        tris.Add(vi+2); tris.Add(vj+2); tris.Add(vi+3);
+                        tris.Add(vj+2); tris.Add(vj+3); tris.Add(vi+3);
+                    }
+                }
+            }
+
+            EnsureMeshCarrier(root, out var meshGO, out var mf, out var mr, out var mc);
+            var m = mf.sharedMesh; if (m == null) m = new Mesh(); else m.Clear();
+            m.name = "TrackMesh_PreserveHoles";
+            m.SetVertices(verts); m.SetUVs(0, uvs); m.SetTriangles(tris, 0, true);
+            m.RecalculateNormals(); m.RecalculateTangents(); m.RecalculateBounds();
+            mf.sharedMesh = m; mc.sharedMesh = m;
+            if (!mr.sharedMaterial) mr.sharedMaterial = new Material(Shader.Find("Standard")) { name = "A2P_Track_DefaultMat" };
+
+            if (replace)
+            {
+                var del = new List<GameObject>();
+                foreach (Transform c in root) if (TileRx.IsMatch(c.name)) del.Add(c.gameObject);
+                foreach (var g in del) Object.DestroyImmediate(g);
+            }
+            EditorUtility.SetDirty(meshGO); EditorUtility.SetDirty(root.gameObject);
+            Debug.Log($"[Kernel] Baked mesh preserving holes. verts={verts.Count}, tris={tris.Count/3}, replaceTiles={replace}");
+        }
+    
+
         public static void DeleteRowsRange(int start, int end)
         {
             var root = FindTrack(); if (!root) return;
