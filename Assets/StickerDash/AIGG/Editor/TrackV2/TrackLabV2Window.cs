@@ -35,6 +35,7 @@ namespace Aim2Pro.AIGG.TrackV2
                 
                 if (GUILayout.Button("Reload Rules", EditorStyles.toolbarButton)) { engine.LoadRules(); AddLog("Rules reloaded."); }
          if (GUILayout.Button("Analyze",  EditorStyles.toolbarButton)) TrackAnalyzer.AnalyzeAndWriteReport();
+                if (GUILayout.Button("Smooth Altitude", EditorStyles.toolbarButton)) Aim2Pro.AIGG.Kernel.SmoothPitchByRows(1f);
                 if (GUILayout.Button("Snapshot", EditorStyles.toolbarButton)) TrackAnalyzer.SaveTopDownSnapshot();
                 if (GUILayout.Button("Clear Tiles", EditorStyles.toolbarButton)) ClearTiles();
                 if (GUILayout.Button("Clear Mesh", EditorStyles.toolbarButton)) Aim2Pro.AIGG.Kernel.ClearTrackMesh(true);

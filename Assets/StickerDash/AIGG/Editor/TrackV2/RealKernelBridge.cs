@@ -828,6 +828,52 @@ namespace Aim2Pro.AIGG
             Debug.Log("[Kernel] Cleared baked mesh.");
         }
 
+        
+        /// <summary>
+        /// Smooth vertical profile by pitching rows so altitude changes aren't stepped.
+        /// For each row, compute forward to neighbor row and apply its pitch to every tile in that row.
+        /// </summary>
+        public static void SmoothPitchByRows(float blend = 1f)
+        {
+            var root = FindTrack(); if (!root) { Debug.LogWarning("[Kernel] No track root."); return; }
+            var rows = GetRows(root); if (rows.Count < 2) { Debug.LogWarning("[Kernel] Need at least 2 rows."); return; }
+
+            var keys = new List<int>(rows.Keys); keys.Sort();
+            int changed = 0;
+
+            Undo.RegisterFullObjectHierarchyUndo(root.gameObject, "SmoothPitchByRows");
+
+            for (int i=0;i<keys.Count;i++)
+            {
+                int r = keys[i];
+                Vector3 c0 = Centroid(rows[r]);
+                Vector3 c1;
+                if (i < keys.Count-1) c1 = Centroid(rows[keys[i+1]]);
+                else if (i > 0)       c1 = c0 + (c0 - Centroid(rows[keys[i-1]]));
+                else                  c1 = c0 + Vector3.forward;
+
+                Vector3 diff = c1 - c0;
+                float horiz = new Vector2(diff.x, diff.z).magnitude;
+                float pitch = Mathf.Atan2(diff.y, Mathf.Max(1e-4f, horiz)) * Mathf.Rad2Deg;
+
+                if (rows.TryGetValue(r, out var tiles))
+                {
+                    foreach (var t in tiles)
+                    {
+                        var e = t.eulerAngles;
+                        // Apply pitch (X) and keep yaw (Y); no roll (Z).
+                        t.rotation = Quaternion.Euler(e.x*(1f-blend) + pitch*blend, e.y, 0f);
+                        EditorUtility.SetDirty(t.gameObject);
+                        changed++;
+                    }
+                }
+            }
+
+            EditorUtility.SetDirty(root.gameObject);
+            Debug.Log($"[Kernel] Smoothed pitch across rows. Tiles adjusted: {changed}");
+        }
+    
+
         public static void DeleteRowsRange(int start, int end)
         {
             var root = FindTrack(); if (!root) return;

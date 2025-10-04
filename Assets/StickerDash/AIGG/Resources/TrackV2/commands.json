@@ -112,6 +112,11 @@
       "id": "no-gaps-first-n",
       "pattern": "\\bno\\s+gaps?\\s+(?:in|for)?\\s*first\\s*(?<rows>\\d+)\\s*rows?\\b",
       "call": "NoGapsInFirstRows({rows})"
+    },
+    {
+      "id": "smooth-altitude",
+      "pattern": "\\b(?:smooth|no\\s*steps?)\\s*(?:altitude|height|vertical)\\b",
+      "call": "SmoothPitchByRows()"
     }
   ]
 }
