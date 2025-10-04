@@ -12,6 +12,7 @@ namespace Aim2Pro.AIGG.TrackV2
         private string log = "";
         private Vector2 logScroll;
         private V2CommandEngine engine;
+        private int _noGapRows = 10;
 
         [MenuItem("Window/Aim2Pro/Track Creator/Track Lab v2")]
         public static void Open() => GetWindow<TrackLabV2Window>("Track Lab v2");
@@ -53,6 +54,11 @@ namespace Aim2Pro.AIGG.TrackV2
             }
 
             GUILayout.Space(6);
+            using (new EditorGUILayout.HorizontalScope()) {
+                _noGapRows = EditorGUILayout.IntField(new GUIContent("No gaps first"), _noGapRows, GUILayout.Width(150));
+                if (GUILayout.Button("Fill No Gaps", GUILayout.Width(120))) Aim2Pro.AIGG.Kernel.NoGapsInFirstRows(_noGapRows);
+            }
+
             GUILayout.Label("Natural Language", EditorStyles.boldLabel);
             nlInput = EditorGUILayout.TextArea(nlInput, GUILayout.MinHeight(90));
 
