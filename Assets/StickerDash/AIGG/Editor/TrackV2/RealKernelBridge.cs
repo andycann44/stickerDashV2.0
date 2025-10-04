@@ -9,6 +9,30 @@ namespace Aim2Pro.AIGG
 {
     public static class Kernel
     {
+        // Ensures we have a mesh GO with MeshFilter/Renderer/Collider; if not possible, creates a fresh one.
+        private static void EnsureMeshCarrier(Transform root,
+            out GameObject meshGO, out MeshFilter mf, out MeshRenderer mr, out MeshCollider mc)
+        {
+            meshGO = GameObject.Find("A2P_TrackMesh");
+            if (!meshGO) meshGO = new GameObject("A2P_TrackMesh");
+            meshGO.transform.SetParent(root, true);
+
+            mf = meshGO.GetComponent<MeshFilter>()    ?? meshGO.AddComponent<MeshFilter>();
+            mr = meshGO.GetComponent<MeshRenderer>()  ?? meshGO.AddComponent<MeshRenderer>();
+            mc = meshGO.GetComponent<MeshCollider>()  ?? meshGO.AddComponent<MeshCollider>();
+
+            // If something odd prevents adding components (e.g., locked prefab), fall back to a fresh GO.
+            if (mf == null || mr == null || mc == null)
+            {
+                var fresh = new GameObject("A2P_TrackMesh_Auto");
+                fresh.transform.SetParent(root, true);
+                mf = fresh.AddComponent<MeshFilter>();
+                mr = fresh.AddComponent<MeshRenderer>();
+                mc = fresh.AddComponent<MeshCollider>();
+                meshGO = fresh;
+            }
+        }
+    {
         private static readonly Regex TileRx = new Regex(@"^tile_r(?<r>\d+)_c(?<c>\d+)$", RegexOptions.IgnoreCase);
 
         // ---------- utils ----------
