@@ -76,6 +76,12 @@ namespace Aim2Pro.TrackCreator
             EditorGUILayout.Space(12);
 
             // --- Natural Language box ---
+            // Clear entire Track object
+            if (GUILayout.Button("Clear Track")) {
+                if (EditorUtility.DisplayDialog("Track Lab", "Delete the Track object and all rows/tiles?", "Clear", "Cancel"))
+                    ClearTrack();
+            }
+            EditorGUILayout.Space(6);
             DrawNLBox();
         }
 
