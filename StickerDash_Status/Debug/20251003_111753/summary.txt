@@ -1,0 +1,29 @@
+== StickerDash snapshot ==
+Time: 20251003_111753
+Branch: feat/x
+Remote: origin	git@github.com:andycann44/stickerDashV2.0.git (fetch)
+
+git status:
+ M Assets/StickerDash/AIGG/Editor/Track/NLFileRunner.cs
+ M Assets/StickerDash/AIGG/Editor/Track/NLTesterWindow.cs
+ M Assets/StickerDash/AIGG/Editor/Track/TrackGenV2Window.cs
+?? StickerDash_Status/Debug/
+
+Editor C# files:
+ - Assets/StickerDash/AIGG/Editor/Settings/ApiSettingsWindow.cs
+ - Assets/StickerDash/AIGG/Editor/Tools/LoadRestorePoint.cs
+ - Assets/StickerDash/AIGG/Editor/Tools/CreateRestorePoint.cs
+ - Assets/StickerDash/AIGG/Editor/Tools/ClearRestorePoints.cs
+ - Assets/StickerDash/AIGG/Editor/Track/NLEngine.cs
+ - Assets/StickerDash/AIGG/Editor/Track/NLFileRunner.cs
+ - Assets/StickerDash/AIGG/Editor/Track/NLInsertLibrary.cs
+ - Assets/StickerDash/AIGG/Editor/Track/PlanMacros.cs
+ - Assets/StickerDash/AIGG/Editor/Track/CanonicalRunner.cs
+ - Assets/StickerDash/AIGG/Editor/Track/NLTesterWindow.cs
+ - Assets/StickerDash/AIGG/Editor/Track/TrackSceneBuilder.cs
+ - Assets/StickerDash/AIGG/Editor/Track/TrackGenV2Window.cs
+ - Assets/StickerDash/AIGG/Editor/Terminal/A2P_OpenTerminalRoot.cs
+ - Assets/StickerDash/AIGG/Editor/Terminal/ForceRecompileMenu.cs
+ - Assets/StickerDash/AIGG/Editor/Workbench/WorkbenchWindow.cs
+ - Assets/StickerDash/AIGG/Editor/Aigg/AIGGMainWindow.cs
+ - Assets/StickerDash/AIGG/Editor/Aigg/SpecPasteMergeWindow.cs

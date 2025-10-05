@@ -1,0 +1,68 @@
+name: Auto PR on branch push
+
+on:
+  push:
+    branches:
+      - 'a2p/**'
+      - 'feat/**'
+      - 'fix/**'
+      - 'hotfix/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: auto-pr-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  open-pr:
+    if: github.ref_type == 'branch' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create or update PR to main
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const {owner, repo} = context.repo;
+            const branch = context.ref.replace('refs/heads/', '');
+            const base = 'main';
+
+            // Look for existing open PR from this branch → base
+            const {data: prs} = await github.rest.pulls.list({
+              owner, repo, state: 'open', base, head: `${owner}:${branch}`, per_page: 100
+            });
+
+            let pr;
+            if (prs.length > 0) {
+              pr = prs[0];
+              core.info(`Existing PR #${pr.number} for ${branch}`);
+            } else {
+              const title = `Auto PR: ${branch}`;
+              const body = [
+                'This PR was opened automatically when the branch was pushed.',
+                '',
+                `- Base: ${base}`,
+                `- Head: ${branch}`,
+                '',
+                'Edit the PR title/description as needed.'
+              ].join('\n');
+              pr = (await github.rest.pulls.create({owner, repo, base, head: branch, title, body})).data;
+              core.info(`Created PR #${pr.number}`);
+            }
+
+            core.setOutput('number', String(pr.number));
+
+      - name: Add label
+        if: steps.pr.outputs.number != ''
+        uses: actions/github-script@v7
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        with:
+          script: |
+            const {owner, repo} = context.repo;
+            const number = Number(process.env.PR_NUMBER);
+            await github.rest.issues.addLabels({owner, repo, issue_number: number, labels: ['auto-pr']});

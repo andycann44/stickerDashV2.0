@@ -1,6 +1,2 @@
-seed(12345)
-buildAbs(250,6)
-randomHoles(12)
-insertJumpGaps(2)
-sBendAuto(2,8)
-slopesRandomAuto(2,8,10)
+seed(134916420)
+buildAbs(300,6)

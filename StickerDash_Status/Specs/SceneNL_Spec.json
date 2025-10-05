@@ -1,0 +1,26 @@
+{
+  "type": "scenePlan",
+  "name": "Scene NL Starter",
+  "grid": {
+    "cols": 3,
+    "rows": 10,
+    "dx": 30.0,
+    "dy": 18.0,
+    "origin": { "x": 0.0, "y": 0.0 }
+  },
+  "trackTemplate": {
+    "lanes": 3,
+    "segments": ["straight"],
+    "lengthUnits": 100.0,
+    "tileWidth": 1.0,
+    "zones": {
+      "start": { "size": { "x": 2.0, "y": 3.0 } },
+      "end":   { "size": { "x": 2.0, "y": 3.0 } }
+    },
+    "killZone": { "y": -5.0, "height": 2.0 }
+  },
+  "difficulty": {
+    "tracks": 1,
+    "playerSpeed": 1.0
+  }
+}

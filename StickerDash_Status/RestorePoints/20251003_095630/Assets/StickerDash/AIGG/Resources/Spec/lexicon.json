@@ -1,0 +1,23 @@
+{
+  "synonyms": {
+    "tiles missing": "holes",
+    "hole": "holes",
+    "s bend": "s-bend",
+    "s–bend": "s-bend",
+    "s—bend": "s-bend",
+    "°": "deg",
+    "degrees": "deg",
+    "to": "-",
+    "–": "-",
+    "—": "-",
+    "−": "-",
+    "l": "left",
+    "r": "right"
+  },
+  "unitsDefault": {
+    "length": "m",
+    "width": "m",
+    "curve": "deg",
+    "slope": "deg"
+  }
+}

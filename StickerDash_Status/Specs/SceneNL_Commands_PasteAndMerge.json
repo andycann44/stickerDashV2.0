@@ -1,0 +1,91 @@
+{
+  "intents": [
+    { "name":"set-name",
+      "regex":"\\bname\\s*:\\s*([A-Za-z0-9 _-]{1,40})\\b",
+      "ops":[{"op":"set","path":"$.name","value":"$1"}]
+    },
+    { "name":"set-grid",
+      "regex":"\\bgrid\\s*(\\d+)x(\\d+)\\b",
+      "ops":[
+        {"op":"set","path":"$.grid.cols","value":"$1:int"},
+        {"op":"set","path":"$.grid.rows","value":"$2:int"}
+      ]
+    },
+    { "name":"set-cols",
+      "regex":"\\b(\\d+)\\s*cols?\\b",
+      "ops":[{"op":"set","path":"$.grid.cols","value":"$1:int"}]
+    },
+    { "name":"set-rows",
+      "regex":"\\b(\\d+)\\s*rows?\\b",
+      "ops":[{"op":"set","path":"$.grid.rows","value":"$1:int"}]
+    },
+    { "name":"set-dx",
+      "regex":"\\bdx\\s*(\\d+(?:\\.\\d+)?)\\b",
+      "ops":[{"op":"set","path":"$.grid.dx","value":"$1:float"}]
+    },
+    { "name":"set-dy",
+      "regex":"\\bdy\\s*(\\d+(?:\\.\\d+)?)\\b",
+      "ops":[{"op":"set","path":"$.grid.dy","value":"$1:float"}]
+    },
+    { "name":"set-origin",
+      "regex":"\\borigin\\s*(-?\\d+(?:\\.\\d+)?),\\s*(-?\\d+(?:\\.\\d+)?)\\b",
+      "ops":[
+        {"op":"set","path":"$.grid.origin.x","value":"$1:float"},
+        {"op":"set","path":"$.grid.origin.y","value":"$2:float"}
+      ]
+    },
+    { "name":"set-lanes",
+      "regex":"\\b(\\d+)\\s+lanes?\\b",
+      "ops":[{"op":"set","path":"$.trackTemplate.lanes","value":"$1:int"}]
+    },
+    { "name":"set-tile-width",
+      "regex":"\\btile\\s*width\\s*(\\d+(?:\\.\\d+)?)m?\\b",
+      "ops":[{"op":"set","path":"$.trackTemplate.tileWidth","value":"$1:float"}]
+    },
+    { "name":"set-length-units",
+      "regex":"\\btrack\\s*(?:length|units)\\s*(\\d+(?:\\.\\d+)?)\\b",
+      "ops":[{"op":"set","path":"$.trackTemplate.lengthUnits","value":"$1:float"}]
+    },
+    { "name":"set-start-zone",
+      "regex":"\\bstart\\s*zone\\s*(\\d+(?:\\.\\d+)?)x(\\d+(?:\\.\\d+)?)\\b",
+      "ops":[
+        {"op":"set","path":"$.trackTemplate.zones.start.size.x","value":"$1:float"},
+        {"op":"set","path":"$.trackTemplate.zones.start.size.y","value":"$2:float"}
+      ]
+    },
+    { "name":"set-end-zone",
+      "regex":"\\bend\\s*zone\\s*(\\d+(?:\\.\\d+)?)x(\\d+(?:\\.\\d+)?)\\b",
+      "ops":[
+        {"op":"set","path":"$.trackTemplate.zones.end.size.x","value":"$1:float"},
+        {"op":"set","path":"$.trackTemplate.zones.end.size.y","value":"$2:float"}
+      ]
+    },
+    { "name":"set-kill-zone",
+      "regex":"\\bkill\\s*zone\\s*y\\s*(-?\\d+(?:\\.\\d+)?)\\s*height\\s*(\\d+(?:\\.\\d+)?)\\b",
+      "ops":[
+        {"op":"set","path":"$.trackTemplate.killZone.y","value":"$1:float"},
+        {"op":"set","path":"$.trackTemplate.killZone.height","value":"$2:float"}
+      ]
+    },
+    { "name":"segments-add-straight",
+      "regex":"\\badd\\s+straight\\b",
+      "ops":[{"op":"append","path":"$.trackTemplate.segments","value":"straight"}]
+    },
+    { "name":"segments-add-arc-left",
+      "regex":"\\badd\\s+arc\\s+left(?:\\s*(\\d+(?:\\.\\d+)?))?\\s*deg?\\b",
+      "ops":[{"op":"append","path":"$.trackTemplate.segments","value":"arc-left-$1"}]
+    },
+    { "name":"segments-add-arc-right",
+      "regex":"\\badd\\s+arc\\s+right(?:\\s*(\\d+(?:\\.\\d+)?))?\\s*deg?\\b",
+      "ops":[{"op":"append","path":"$.trackTemplate.segments","value":"arc-right-$1"}]
+    },
+    { "name":"origin-offset-x",
+      "regex":"\\boffset\\s*origin\\s*x\\s*(-?\\d+(?:\\.\\d+)?)\\b",
+      "ops":[{"op":"offset","path":"$.grid.origin.x","value":"$1:float"}]
+    },
+    { "name":"origin-offset-y",
+      "regex":"\\boffset\\s*origin\\s*y\\s*(-?\\d+(?:\\.\\d+)?)\\b",
+      "ops":[{"op":"offset","path":"$.grid.origin.y","value":"$1:float"}]
+    }
+  ]
+}
