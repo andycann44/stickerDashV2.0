@@ -26,17 +26,21 @@ namespace Aim2Pro.AIGG.NL {
 
       foreach (var asm in AppDomain.CurrentDomain.GetAssemblies()) {
         foreach (var c in Cands) {
-          // Try fully-qualified first, then by simple name match.
-          Type t = asm.GetType(c.T, false, true);
+          // Try fully-qualified first; then simple name.
+          Type t = asm.GetType(c.T, throwOnError:false, ignoreCase:true);
           if (t == null) {
             string simple = c.T.LastIndexOf(.) >= 0 ? c.T.Substring(c.T.LastIndexOf(.)+1) : c.T;
             foreach (var tt in asm.GetTypes()) { if (tt.Name == simple) { t = tt; break; } }
           }
           if (t == null) continue;
 
-          var m = t.GetMethod(c.M,
-                    BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Static|BindingFlags.Instance,
-                    binder: null, types: new Type[]{ typeof(string) }, modifiers: null);
+          // Use positional overload (no named args) for broad compiler compatibility.
+          var m = t.GetMethod(
+                    c.M,
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance,
+                    null,
+                    new Type[] { typeof(string) },
+                    null);
           if (m == null) continue;
 
           object inst = m.IsStatic ? null : Activator.CreateInstance(t);
