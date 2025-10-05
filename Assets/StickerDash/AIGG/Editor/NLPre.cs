@@ -2,27 +2,33 @@
 using System.Text.RegularExpressions;
 
 namespace Aim2Pro {
-  // Tiny normalizer: fixes dashes, units, spacing.
+  // Normalizes per line: keeps newlines, fixes dashes, units, spacing.
   public static class NLPre {
-    static readonly Regex Ws   = new Regex(@"\s+", RegexOptions.Compiled);
-    static readonly Regex Dsh  = new Regex(@"[\u2010\u2011\u2012\u2013\u2014\u2212]", RegexOptions.Compiled); // hyphen/fig/en/em/minus
+    static readonly Regex Dash = new Regex(@"[\u2010\u2011\u2012\u2013\u2014\u2212]", RegexOptions.Compiled); // hyphen/non-breaking/en/em/minus
+    static readonly Regex Space= new Regex(@"[ \t]+", RegexOptions.Compiled);
     public static string Normalize(string raw) {
       if (string.IsNullOrEmpty(raw)) return raw;
 
-      // 1) unify dashes to ASCII hyphen
-      string s = Dsh.Replace(raw, "-");
+      string text = raw.Replace("\r\n","\n");           // unify EOL
+      var parts = text.Split(n);                     // keep line boundaries
+      for (int i=0;i<parts.Length;i++){
+        var s = parts[i];
 
-      // 2) common range phrasing
-      s = Regex.Replace(s, @"\brows?\s+(\d+)\s*to\s*(\d+)", "rows $1-$2", RegexOptions.IgnoreCase);
+        // dashes → ASCII hyphen
+        s = Dash.Replace(s, "-");
 
-      // 3) unit synonyms → "m"
-      s = Regex.Replace(s, @"\bmetres?\b", "m", RegexOptions.IgnoreCase);
-      s = Regex.Replace(s, @"\bmeters?\b", "m", RegexOptions.IgnoreCase);
+        // ranges: "rows 1 to 2" → "rows 1-2"
+        s = Regex.Replace(s, @"\brows?\s+(\d+)\s*to\s*(\d+)", "rows $1-$2", RegexOptions.IgnoreCase);
 
-      // 4) tidy whitespace
-      s = Ws.Replace(s, " ").Trim();
+        // unit synonyms → m
+        s = Regex.Replace(s, @"\bmetres?\b|\bmeters?\b", "m", RegexOptions.IgnoreCase);
 
-      return s;
+        // tidy spaces (but NOT newlines)
+        s = Space.Replace(s, " ").Trim();
+
+        parts[i] = s;
+      }
+      return string.Join("\n", parts);
     }
   }
 }
