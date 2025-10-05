@@ -1,3 +1,4 @@
+#if false // A2P_DISABLED: single Track Lab menu only
 #if UNITY_EDITOR
 using UnityEditor;
 using UnityEngine;
@@ -74,3 +75,4 @@ namespace Aim2Pro.AIGG.TrackV2
     }
 }
 #endif
+#endif // A2P_DISABLED
