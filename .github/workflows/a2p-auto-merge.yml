@@ -1,0 +1,30 @@
+name: a2p-auto-merge
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+  check_suite:
+    types: [completed]
+  check_run:
+    types: [completed]
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  enable:
+    if: startsWith(github.head_ref, a2p/)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          pull-request-number: ${{ github.event.pull_request.number }}
+          merge-method: squash
+  merge:
+    if: startsWith(github.head_ref, a2p/)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: peter-evans/auto-merge@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          merge-method: squash
+          delete-branch: true
