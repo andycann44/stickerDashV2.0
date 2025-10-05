@@ -47,3 +47,5 @@ UserSettings/
 
 # Stickerdash project status (keep)
 !/StickerDash_Status/
+.DS_Store
+StickerDash_Status/.DS_Store

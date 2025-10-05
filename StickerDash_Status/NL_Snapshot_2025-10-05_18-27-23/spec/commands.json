@@ -1,0 +1,33 @@
+{
+  "commands": [
+    { "name":"rebuild",
+      "pattern":"\\b(rebuild|build)\\s+(\\d+)\\s*(m|meters)?\\s*by\\s*(\\d+)\\s*(m|meters|tiles)?\\b",
+      "map": { "op":"Rebuild", "args": { "lengthMeters":"$2:int", "widthValue":"$4:int", "widthUnit":"$5:lower" } },
+      "defaults": { "widthUnit":"m" } },
+
+    { "name":"s_bend",
+      "pattern":"\\b(s\\s*-?\\s*bend|s bend|s-bend)\\b.*?\\brows\\s+(\\d+)\\s*[-to]+\\s*(\\d+)\\b.*?\\b(left-right|right-left|lr|rl)\\b.*?(\\d+)\\s*(deg|degrees|°)?",
+      "map": { "macro":"s_bend", "args": { "start":"$2:int", "end":"$3:int", "pattern":"$4", "deg":"$5:int" } },
+      "defaults": { "pattern":"left-right", "deg":20 } },
+
+    { "name":"random_holes",
+      "pattern":"\\brandom\\s+(tiles\\s+missing|holes?)\\b(?:.*?(\\d+)\\s*%)?",
+      "map": { "macro":"random_holes", "args": { "densityPercent":"$2:int" } },
+      "defaults": { "densityPercent":10 } },
+
+    { "name":"jump_gaps",
+      "pattern":"\\b(row\\s+gaps?\\s+for\\s+jumps?|jump\\s+gaps?)\\b(?:.*?(\\d+)\\b)?",
+      "map": { "macro":"insert_jump_gaps", "args": { "count":"$2:int" } },
+      "defaults": { "count":2 } },
+
+    { "name":"random_straight_slopes",
+      "pattern":"\\brandom\\s+slopes?\\s+on\\s+the\\s+straights\\b",
+      "map": { "macro":"random_straight_slopes", "args": {} },
+      "defaults": {} },
+
+    { "name":"smooth",
+      "pattern":"\\b(smooth\\s+curves?|reflow\\s+rows?|build\\s+spline|resample\\s+(\\d+)\\s*(per\\s*m|rows\\/m))\\b",
+      "map": { "macro":"spline_smooth", "args": { "densityRowsPerMeter":"$2:int" } },
+      "defaults": { "densityRowsPerMeter":2 } }
+  ]
+}

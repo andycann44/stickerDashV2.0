@@ -1,22 +1,24 @@
 using UnityEditor;
 using UnityEngine;
 using System;
-using System.Text.RegularExpressions;
 
 namespace Aim2Pro.TrackCreator
 {
     public class TrackLab : EditorWindow
     {
-        int lengthMeters = 120, widthTiles = 6;
-        float tileSize = 1f, thickness = 0.2f;
+        // UI state
+        int lengthMeters = 120;
+        int widthTiles = 6;
+        float tileSize = 1f;
+        float thickness = 0.2f;
 
-        int rangeA = 1, rangeB = 10;
-        float offsetX = 0f, offsetY = 0f;
+        int rangeA = 1;
+        int rangeB = 10;
+        float offsetX = 0f;
+        float offsetY = 0f;
 
-        float appendLen = 50f, appendStep = 1f;
-
-        // NL prompt
-        string nlText = "create 120 m by 6 m\nstraighten rows 1-10\noffset rows 1-10 x 1\n";
+        float appendLen = 50f;
+        float appendStep = 1f;
 
         [MenuItem("Window/Aim2Pro/Track Creator/Track Lab (All-in-One)", priority = 10)]
         public static void Open() => GetWindow<TrackLab>("Track Lab");
@@ -26,7 +28,7 @@ namespace Aim2Pro.TrackCreator
             GUILayout.Label("Track Lab — Baseline", EditorStyles.boldLabel);
             GUILayout.Space(6);
 
-            // Create Grid
+            // Build Grid
             GUILayout.Label("Create Grid", EditorStyles.miniBoldLabel);
             using (new EditorGUILayout.HorizontalScope())
             {
@@ -38,11 +40,12 @@ namespace Aim2Pro.TrackCreator
                 tileSize  = EditorGUILayout.FloatField("Tile Size (m)", tileSize);
                 thickness = EditorGUILayout.FloatField("Thickness (m)", thickness);
             }
-            if (GUILayout.Button("Build Grid")) BuildGrid(lengthMeters, widthTiles, tileSize, thickness);
+            if (GUILayout.Button("Build Grid"))
+                BuildGrid(lengthMeters, widthTiles, tileSize, thickness);
 
             EditorGUILayout.Space(10);
 
-            // Row edits
+            // Edits
             GUILayout.Label("Row Edits (inclusive)", EditorStyles.miniBoldLabel);
             using (new EditorGUILayout.HorizontalScope())
             {
@@ -52,116 +55,39 @@ namespace Aim2Pro.TrackCreator
             using (new EditorGUILayout.HorizontalScope())
             {
                 offsetX = EditorGUILayout.FloatField("Offset X (m)", offsetX);
-                if (GUILayout.Button("Apply X Offset", GUILayout.Width(140))) OffsetRowsX(rangeA, rangeB, offsetX);
+                if (GUILayout.Button("Apply X Offset", GUILayout.Width(140)))
+                    OffsetRowsX(rangeA, rangeB, offsetX);
             }
             using (new EditorGUILayout.HorizontalScope())
             {
                 offsetY = EditorGUILayout.FloatField("Offset Y (m)", offsetY);
-                if (GUILayout.Button("Apply Y Offset", GUILayout.Width(140))) OffsetRowsY(rangeA, rangeB, offsetY);
+                if (GUILayout.Button("Apply Y Offset", GUILayout.Width(140)))
+                    OffsetRowsY(rangeA, rangeB, offsetY);
             }
             if (GUILayout.Button("Straighten Rows (match previous row X + tile heights)"))
                 StraightenRows(rangeA, rangeB);
 
             EditorGUILayout.Space(10);
 
-            // Append
             GUILayout.Label("Append", EditorStyles.miniBoldLabel);
             using (new EditorGUILayout.HorizontalScope())
             {
                 appendLen  = EditorGUILayout.FloatField("Length (m)", appendLen);
                 appendStep = EditorGUILayout.FloatField("Step (m)", appendStep);
             }
-            if (GUILayout.Button("Append Straight")) AppendStraight(appendLen, appendStep, widthTiles, tileSize, thickness);
+            if (GUILayout.Button("Append Straight"))
+                AppendStraight(appendLen, appendStep, widthTiles, tileSize, thickness);
 
-            EditorGUILayout.Space(12);
+            EditorGUILayout.Space(10);
 
-            // --- Natural Language box ---
-            DrawNLBox();
-        }
-
-        void DrawNLBox()
-        {
-            GUILayout.Label("Natural Language (tiny, safe)", EditorStyles.miniBoldLabel);
-            EditorGUILayout.HelpBox(
-                "Examples:\n• create 120 m by 6 m\n• straighten rows 1-10\n• offset rows 1-10 x 1\n• offset rows 1-10 y 0.2\n• append straight 50 m [step 1]\n• delete row 3 / delete rows 2-5",
-                MessageType.None);
-            nlText = EditorGUILayout.TextArea(nlText, GUILayout.MinHeight(80));
-            if (GUILayout.Button("Apply NL")) ApplyNL(nlText);
-        }
-
-        static int I(string s) => int.Parse(s);
-        static float F(string s) => (float)double.Parse(s);
-
-        void ApplyNL(string raw)
-        {
-            // Optional preprocessor: NLPre.Normalize(raw) if present (no-op otherwise)
-            try {
-                var t = System.Type.GetType("Aim2Pro.NLPre, Assembly-CSharp-Editor") ??
-                        System.Type.GetType("Aim2Pro.NL.NLPre, Assembly-CSharp-Editor");
-                if (t != null)
-                {
-                    var m = t.GetMethod("Normalize", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
-                    if (m != null)
-                    {
-                        var o = m.Invoke(null, new object[]{ raw });
-                        if (o is string s) raw = s;
-                    }
-                }
-            } catch (System.Exception ex) {
-                Debug.LogWarning("[TrackLab/NL] Preprocess failed: " + ex.Message);
-            }
-
-            var text = raw.Replace("\\u000A", "\n").Replace("\\n", "\n");
-            var lines = text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-            int applied = 0;
-
-            Undo.IncrementCurrentGroup();
-            int group = Undo.GetCurrentGroup();
-
-            try
+            GUILayout.Label("Delete", EditorStyles.miniBoldLabel);
+            using (new EditorGUILayout.HorizontalScope())
             {
-                foreach (var L in lines)
-                {
-                    var line = L.Trim();
-                    if (string.IsNullOrEmpty(line)) continue;
-
-                    // create 120 m by 6 m
-                    var mCreate = Regex.Match(line, @"^create\s+(\d+)\s*m\s+by\s+(\d+)\s*m?$", RegexOptions.IgnoreCase);
-                    if (mCreate.Success) { BuildGrid(I(mCreate.Groups[1].Value), I(mCreate.Groups[2].Value), 1f, 0.2f); applied++; continue; }
-
-                    // straighten rows 1-10
-                    var mStr = Regex.Match(line, @"^straighten\s+rows\s+(\d+)\s*-\s*(\d+)$", RegexOptions.IgnoreCase);
-                    if (mStr.Success) { StraightenRows(I(mStr.Groups[1].Value), I(mStr.Groups[2].Value)); applied++; continue; }
-
-                    // offset rows 1-10 x 1.5
-                    var mOffX = Regex.Match(line, @"^offset\s+rows\s+(\d+)\s*-\s*(\d+)\s*x\s*(-?\d+(?:\.\d+)?)$", RegexOptions.IgnoreCase);
-                    if (mOffX.Success) { OffsetRowsX(I(mOffX.Groups[1].Value), I(mOffX.Groups[2].Value), F(mOffX.Groups[3].Value)); applied++; continue; }
-
-                    // offset rows 1-10 y 0.2
-                    var mOffY = Regex.Match(line, @"^offset\s+rows\s+(\d+)\s*-\s*(\d+)\s*y\s*(-?\d+(?:\.\d+)?)$", RegexOptions.IgnoreCase);
-                    if (mOffY.Success) { OffsetRowsY(I(mOffY.Groups[1].Value), I(mOffY.Groups[2].Value), F(mOffY.Groups[3].Value)); applied++; continue; }
-
-                    // append straight 50 m [step 1]
-                    var mAppend = Regex.Match(line, @"^append\s+straight\s+(\d+(?:\.\d+)?)\s*m(?:\s*step\s*(\d+(?:\.\d+)?))?$", RegexOptions.IgnoreCase);
-                    if (mAppend.Success) { AppendStraight(F(mAppend.Groups[1].Value), mAppend.Groups[2].Success ? F(mAppend.Groups[2].Value) : 1f, widthTiles, tileSize, thickness); applied++; continue; }
-
-                    // delete row 3
-                    var mDelRow = Regex.Match(line, @"^delete\s+row\s+(\d+)$", RegexOptions.IgnoreCase);
-                    if (mDelRow.Success) { DeleteRow(I(mDelRow.Groups[1].Value)); applied++; continue; }
-
-                    // delete rows 2-5
-                    var mDelRows = Regex.Match(line, @"^delete\s+rows\s+(\d+)\s*-\s*(\d+)$", RegexOptions.IgnoreCase);
-                    if (mDelRows.Success) { DeleteRowsRange(I(mDelRows.Groups[1].Value), I(mDelRows.Groups[2].Value)); applied++; continue; }
-
-                    Debug.LogWarning($"[TrackLab/NL] Unrecognized: \"{line}\"");
-                }
+                if (GUILayout.Button("Delete Row A"))
+                    DeleteRow(rangeA);
+                if (GUILayout.Button("Delete Rows A-B"))
+                    DeleteRowsRange(rangeA, rangeB);
             }
-            finally
-            {
-                Undo.CollapseUndoOperations(group);
-            }
-
-            Debug.Log($"[TrackLab/NL] Applied {applied} command(s).");
         }
 
         // ---------- helpers ----------
@@ -277,6 +203,7 @@ namespace Aim2Pro.TrackCreator
             int steps = Mathf.Max(1, Mathf.CeilToInt(distanceMeters / Mathf.Max(0.0001f, stepMeters)));
             var track = EnsureTrack();
 
+            // Determine current rows
             int maxRow = 0;
             for (int i = 0; i < track.transform.childCount; i++)
             {

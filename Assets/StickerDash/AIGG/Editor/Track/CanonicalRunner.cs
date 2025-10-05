@@ -1,3 +1,4 @@
+#if false // A2P_DISABLED: single Track Lab menu only
 #if UNITY_EDITOR
 using UnityEditor; using UnityEngine;
 using System; using System.IO; using System.Linq; using System.Text.RegularExpressions;
@@ -46,3 +47,4 @@ namespace Aim2Pro.AIGG.Track {
   }
 }
 #endif
+#endif // A2P_DISABLED
