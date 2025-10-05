@@ -1,12 +1,11 @@
 using UnityEditor;
 using UnityEngine;
-using Aim2Pro.AIGG.NL;
 using System;
 using System.Text.RegularExpressions;
 
 namespace Aim2Pro.TrackCreator
 {
-    public partial class TrackLab : EditorWindow
+    public class TrackLab : EditorWindow
     {
         int lengthMeters = 120, widthTiles = 6;
         float tileSize = 1f, thickness = 0.2f;
@@ -80,7 +79,7 @@ namespace Aim2Pro.TrackCreator
             // Clear entire Track object
             if (GUILayout.Button("Clear Track")) {
                 if (EditorUtility.DisplayDialog("Track Lab", "Delete the Track object and all rows/tiles?", "Clear", "Cancel"))
-                    TrackOps.ClearTrack();
+                    ClearTrack();
             }
             EditorGUILayout.Space(6);
             DrawNLBox();
@@ -160,8 +159,6 @@ namespace Aim2Pro.TrackCreator
                     var mDelRows = Regex.Match(line, @"^delete\s+rows\s+(\d+)\s*-\s*(\d+)$", RegexOptions.IgnoreCase);
                     if (mDelRows.Success) { DeleteRowsRange(I(mDelRows.Groups[1].Value), I(mDelRows.Groups[2].Value)); applied++; continue; }
 
-                    // spec-driven delete tile(s) (from your JSON spec files)
-                    if (SpecNL.TryApplyDeleteTiles(line)) { applied++; continue; }
                     Debug.LogWarning($"[TrackLab/NL] Unrecognized: \"{line}\"");
                 }
             }
