@@ -39,7 +39,7 @@ namespace Aim2Pro.AIGG.NL {
       m = Regex.Match(s, @"remove\s+rows?\s+(\d+)\s*-\s*(\d+)");
       if (m.Success) can += $"deleteRows({m.Groups[1].Value},{m.Groups[2].Value})\n";
 
-      m = Regex.Match(s, @"remove\s+tiles?\s+([\d,\\s]+)\s+row\s+(\d+)");
+      m = Regex.Match(s, @"remove\s+tiles?\s+([\d,\s]+)\s+row\s+(\d+)");
       if (m.Success) can += $"deleteTiles({m.Groups[1].Value}, row={m.Groups[2].Value})\n";
 
       return can.Trim();

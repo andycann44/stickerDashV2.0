@@ -1,8 +1,8 @@
 using UnityEditor;
 using UnityEngine;
-using Aim2Pro.AIGG.NL;
 using System;
 using System.Text.RegularExpressions;
+using Aim2Pro.AIGG.NL;
 
 namespace Aim2Pro.TrackCreator
 {
@@ -88,7 +88,7 @@ namespace Aim2Pro.TrackCreator
                 MessageType.None);
             nlText = EditorGUILayout.TextArea(nlText, GUILayout.MinHeight(80));
             if (GUILayout.Button("Apply NL")) ApplyNL(nlText);
-            if (GUILayout.Button("Parse V2 \342\206\222 Run")) ApplyNL_V2(nlText);
+            if (GUILayout.Button("Parse V2 -> Run")) ApplyNL_V2(nlText);
         }
 
         static int I(string s) => int.Parse(s);
@@ -164,6 +164,19 @@ namespace Aim2Pro.TrackCreator
             }
 
             Debug.Log($"[TrackLab/NL] Applied {applied} command(s).");
+        }
+
+        void ApplyNL_V2(string raw)
+        {
+            try {
+                var can  = V2CanonicalParser.ParseToCanonical(raw);
+                var path = V2CanonicalParser.SaveCanonical(can);
+                Debug.Log("[TrackLab/V2] Saved canonical to " + path + "\n" + can);
+                if (!V2CanonicalParser.TryRunLast())
+                    UnityEditor.EditorUtility.DisplayDialog("Track Lab", "Saved canonical, but CanonicalRunner.RunLast() not found.", "OK");
+            } catch (System.Exception ex) {
+                Debug.LogError("[TrackLab/V2] Failed: " + ex.Message);
+            }
         }
 
         // ---------- helpers ----------
@@ -320,15 +333,3 @@ namespace Aim2Pro.TrackCreator
         }
     }
 }
-
-        void ApplyNL_V2(string raw) {
-            try {
-                var can  = V2CanonicalParser.ParseToCanonical(raw);
-                var path = V2CanonicalParser.SaveCanonical(can);
-                Debug.Log("[TrackLab/V2] Saved canonical to " + path + "\n" + can);
-                if (!V2CanonicalParser.TryRunLast())
-                    UnityEditor.EditorUtility.DisplayDialog("Track Lab", "Saved canonical, but CanonicalRunner.RunLast() not found.", "OK");
-            } catch (System.Exception ex) {
-                Debug.LogError("[TrackLab/V2] Failed: " + ex.Message);
-            }
-        }
