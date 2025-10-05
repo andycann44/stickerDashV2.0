@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace Aim2Pro.TrackCreator
 {
-    public class TrackLab : EditorWindow
+    public partial class TrackLab : EditorWindow
     {
         int lengthMeters = 120, widthTiles = 6;
         float tileSize = 1f, thickness = 0.2f;
@@ -79,7 +79,7 @@ namespace Aim2Pro.TrackCreator
             // Clear entire Track object
             if (GUILayout.Button("Clear Track")) {
                 if (EditorUtility.DisplayDialog("Track Lab", "Delete the Track object and all rows/tiles?", "Clear", "Cancel"))
-                    ClearTrack();
+                    TrackOps.ClearTrack();
             }
             EditorGUILayout.Space(6);
             DrawNLBox();
