@@ -1,0 +1,16 @@
+{
+  "intents": [
+    { "name": "track-width-m",
+      "regex": "\\b(\\d+)\\s*m\\s*(?:wide|width)\\b",
+      "ops": [ { "op": "set", "path": "$.trackTemplate.lanes", "value": "$1:int" } ]
+    },
+    { "name": "tile-width-m",
+      "regex": "\\btile\\s*width\\s*(\\d+(?:\\.\\d+)?)m?\\b",
+      "ops": [ { "op": "set", "path": "$.trackTemplate.tileWidth", "value": "$1:float" } ]
+    },
+    { "name": "straight-length-m",
+      "regex": "\\bstraight\\s*(\\d+(?:\\.\\d+)?)\\s*m\\b",
+      "ops": [ { "op": "set", "path": "$.trackTemplate.lengthUnits", "value": "$1:float" } ]
+    }
+  ]
+}
