@@ -1,0 +1,9 @@
+=== TRACK LAB NL TESTS === 2025-10-05 19:54:35Z
+PASS  create 12x6
+PASS  offset rows 1–10 x 2
+PASS  append straight +5 rows
+PASS  delete row 3
+PASS  straighten rows 2–4 aligns X to previous
+PASS  NLPre: em-dash normalized
+PASS  V2 canonical parse basic
+=== SUMMARY: PASS=7 FAIL=0 WARN=0 ===
