@@ -1,0 +1,12 @@
+{
+  "commands": [
+    {
+      "name": "build L by W (meters)",
+      "regex": "^\\s*(?:create|build|rebuild)\\s+(\\d+(?:\\.\\d+)?)\\s*m\\s*(?:x|by)\\s*(\\d+(?:\\.\\d+)?)\\s*m(?:\\s*(.*))?\\s*$",
+      "call": {
+        "fn": "GenerateScenarioFromPrompt",
+        "args": ["$1:float", "$2:float", "$3?:string"]
+      }
+    }
+  ]
+}
