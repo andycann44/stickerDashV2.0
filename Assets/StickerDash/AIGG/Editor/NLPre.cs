@@ -2,33 +2,29 @@
 using System.Text.RegularExpressions;
 
 namespace Aim2Pro {
-  // Normalizes per line: keeps newlines, fixes dashes, units, spacing.
+  // Normalize per line: keep newlines, fix dashes/units/spacing.
   public static class NLPre {
-    static readonly Regex Dash = new Regex(@"[\u2010\u2011\u2012\u2013\u2014\u2212]", RegexOptions.Compiled); // hyphen/non-breaking/en/em/minus
-    static readonly Regex Space= new Regex(@"[ \t]+", RegexOptions.Compiled);
+    static readonly Regex Dash      = new Regex("[\u2010\u2011\u2012\u2013\u2014\u2212]", RegexOptions.Compiled); // hyphen variants
+    static readonly Regex RangeRows = new Regex(@"\brows?\s+(\d+)\s*(?:to|-)\s*(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    static readonly Regex Units     = new Regex(@"\b(?:metres?|meters?)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    static readonly Regex Space     = new Regex(@"[ \t]+", RegexOptions.Compiled);
+
     public static string Normalize(string raw) {
       if (string.IsNullOrEmpty(raw)) return raw;
 
-      string text = raw.Replace("\r\n","\n");           // unify EOL
-      var parts = text.Split(n);                     // keep line boundaries
-      for (int i=0;i<parts.Length;i++){
-        var s = parts[i];
+      string text = raw.Replace("\r\n", "\n");     // unify EOL
+      var lines = text.Split(n);                // preserve line boundaries
+      for (int i = 0; i < lines.Length; i++) {
+        string s = lines[i];
 
-        // dashes → ASCII hyphen
-        s = Dash.Replace(s, "-");
+        s = Dash.Replace(s, "-");                  // fancy dashes -> hyphen
+        s = RangeRows.Replace(s, m => $"rows {m.Groups[1].Value}-{m.Groups[2].Value}");
+        s = Units.Replace(s, "m");                 // metres/meters -> m
+        s = Space.Replace(s, " ").Trim();          // tidy spaces per line
 
-        // ranges: "rows 1 to 2" → "rows 1-2"
-        s = Regex.Replace(s, @"\brows?\s+(\d+)\s*to\s*(\d+)", "rows $1-$2", RegexOptions.IgnoreCase);
-
-        // unit synonyms → m
-        s = Regex.Replace(s, @"\bmetres?\b|\bmeters?\b", "m", RegexOptions.IgnoreCase);
-
-        // tidy spaces (but NOT newlines)
-        s = Space.Replace(s, " ").Trim();
-
-        parts[i] = s;
+        lines[i] = s;
       }
-      return string.Join("\n", parts);
+      return string.Join("\n", lines);
     }
   }
 }
