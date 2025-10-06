@@ -27,6 +27,7 @@ namespace Aim2Pro.AIGG.Track
         float safeStartMeters = 5f;
         float safeFinishMeters = 5f;
         bool groupRowsInHierarchy = true;
+        bool verboseGaps = false;
 
         // Build state kept on parent so we can append later
         [Serializable]
@@ -51,6 +52,7 @@ namespace Aim2Pro.AIGG.Track
                 safeStartMeters = EditorGUILayout.FloatField("Safe start (m)", safeStartMeters);
                 safeFinishMeters = EditorGUILayout.FloatField("Safe finish (m)", safeFinishMeters);
                 groupRowsInHierarchy = GUILayout.Toggle(groupRowsInHierarchy, "Group rows", GUILayout.Width(120));
+                verboseGaps = GUILayout.Toggle(verboseGaps, "Gap debug", GUILayout.Width(110));
             }
 
             using (new EditorGUILayout.HorizontalScope())
@@ -267,15 +269,20 @@ namespace Aim2Pro.AIGG.Track
             bool inSafeStart = safeZones && (st.builtMeters < safeStart);
             bool inSafeEnd   = safeZones && ((estTotal - st.builtMeters) <= safeFinish);
 
-            // skip whole row?
+            // Row-level gap? skip entire row (and don't create a Row_XXXm folder)
             if (!inSafeStart && !inSafeEnd && gapRowPercent > 0f && rand.NextDouble() < (gapRowPercent / 100.0))
-            { st.builtMeters += tileStep; return; }
+            {
+                if (verboseGaps) Debug.Log($"[NLTrack:gaps] SKIP ROW at ~{Mathf.RoundToInt(st.builtMeters)}m (row {gapRowPercent}%)");
+                st.builtMeters += tileStep;
+                return;
+            }
 
-            // Create a row folder (optional)
+            // Optional row folder
             Transform rowParent = parent;
+            GameObject rowGO = null;
             if (groupRowsInHierarchy)
             {
-                var rowGO = new GameObject($"Row_{Mathf.RoundToInt(st.builtMeters)}m");
+                rowGO = new GameObject($"Row_{Mathf.RoundToInt(st.builtMeters)}m");
                 rowGO.transform.SetParent(parent, true);
                 rowGO.transform.position = st.pos;
                 rowParent = rowGO.transform;
@@ -285,11 +292,16 @@ namespace Aim2Pro.AIGG.Track
             int cols = Mathf.Max(1, Mathf.RoundToInt(st.trackWidth / tileUnit));
             var right = Vector3.Cross(Vector3.up, st.fwd).normalized;
             float half = (cols - 1) * 0.5f;
+            bool placedAny = false;
 
             for (int j = 0; j < cols; j++)
             {
+                // Tile-level gap?
                 if (!inSafeStart && !inSafeEnd && gapTilePercent > 0f && rand.NextDouble() < (gapTilePercent / 100.0))
+                {
+                    if (verboseGaps) Debug.Log($"[NLTrack:gaps] skip tile r~{Mathf.RoundToInt(st.builtMeters)}m c{j} (tile {gapTilePercent}%)");
                     continue;
+                }
 
                 var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 go.name = $"Tile_{Mathf.RoundToInt(st.builtMeters)}m_c{j}";
@@ -297,6 +309,14 @@ namespace Aim2Pro.AIGG.Track
                 go.transform.position = st.pos + right * ((j - half) * tileUnit);
                 go.transform.rotation = Quaternion.LookRotation(st.fwd, Vector3.up);
                 go.transform.localScale = new Vector3(tileUnit * 0.98f, 0.1f, tileStep);
+                placedAny = true;
+            }
+
+            // If no tiles were placed in this row, remove the row folder so the Hierarchy reflects the gap
+            if (groupRowsInHierarchy && rowGO != null && !placedAny)
+            {
+                UnityEngine.Object.DestroyImmediate(rowGO);
+                if (verboseGaps) Debug.Log($"[NLTrack:gaps] delete empty row folder at ~{Mathf.RoundToInt(st.builtMeters)}m");
             }
 
             st.builtMeters += tileStep;
