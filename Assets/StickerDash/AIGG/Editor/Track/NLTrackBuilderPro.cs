@@ -26,6 +26,7 @@ namespace Aim2Pro.AIGG.Track
         bool autoStraightFromSize = true;
         float safeStartMeters = 5f;
         float safeFinishMeters = 5f;
+        bool groupRowsInHierarchy = true;
 
         // Build state kept on parent so we can append later
         [Serializable]
@@ -49,6 +50,7 @@ namespace Aim2Pro.AIGG.Track
                 autoStraightFromSize = GUILayout.Toggle(autoStraightFromSize, "Auto-straight from size", GUILayout.Width(170));
                 safeStartMeters = EditorGUILayout.FloatField("Safe start (m)", safeStartMeters);
                 safeFinishMeters = EditorGUILayout.FloatField("Safe finish (m)", safeFinishMeters);
+                groupRowsInHierarchy = GUILayout.Toggle(groupRowsInHierarchy, "Group rows", GUILayout.Width(120));
             }
 
             using (new EditorGUILayout.HorizontalScope())
@@ -269,6 +271,16 @@ namespace Aim2Pro.AIGG.Track
             if (!inSafeStart && !inSafeEnd && gapRowPercent > 0f && rand.NextDouble() < (gapRowPercent / 100.0))
             { st.builtMeters += tileStep; return; }
 
+            // Create a row folder (optional)
+            Transform rowParent = parent;
+            if (groupRowsInHierarchy)
+            {
+                var rowGO = new GameObject($"Row_{Mathf.RoundToInt(st.builtMeters)}m");
+                rowGO.transform.SetParent(parent, true);
+                rowGO.transform.position = st.pos;
+                rowParent = rowGO.transform;
+            }
+
             float tileUnit = 1f;
             int cols = Mathf.Max(1, Mathf.RoundToInt(st.trackWidth / tileUnit));
             var right = Vector3.Cross(Vector3.up, st.fwd).normalized;
@@ -281,7 +293,7 @@ namespace Aim2Pro.AIGG.Track
 
                 var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 go.name = $"Tile_{Mathf.RoundToInt(st.builtMeters)}m_c{j}";
-                go.transform.SetParent(parent, true);
+                go.transform.SetParent(rowParent, true);
                 go.transform.position = st.pos + right * ((j - half) * tileUnit);
                 go.transform.rotation = Quaternion.LookRotation(st.fwd, Vector3.up);
                 go.transform.localScale = new Vector3(tileUnit * 0.98f, 0.1f, tileStep);
