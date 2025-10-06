@@ -142,7 +142,7 @@ namespace Aim2Pro.AIGG.Track
 
             // manual P##| commands passed through
             foreach (Match m in Regex.Matches(t, @"\bP(\d{1,3})\|([^\s,;]+)\b", RegexOptions.IgnoreCase))
-                spec.cmds.Add(m.Value.trim());
+                spec.cmds.Add(m.Value.Trim());
 
             return spec;
         }
