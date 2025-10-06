@@ -6,8 +6,6 @@ using System.Text;
 using UnityEditor;
 using UnityEngine;
 
-// Minimal NL→JSON interpreter for our intents.json/macros.json/commands.json.
-// Safe: standalone test window (does not touch TrackLab yet).
 namespace Aim2Pro.AIGG.NL
 {
     public class NLTesterWindow : EditorWindow
@@ -30,7 +28,7 @@ namespace Aim2Pro.AIGG.NL
                 {
                     var engine = new IntentEngine();
                     var spec = engine.Parse(_nl, out var log);
-                    _json = Pretty(spec.ToJson());
+                    _json = spec.ToJson(); // return compact JSON (no pretty dependency)
                     _log = log;
                 }
                 catch (Exception ex)
@@ -49,21 +47,8 @@ namespace Aim2Pro.AIGG.NL
             GUILayout.Label("Parse Log", EditorStyles.boldLabel);
             EditorGUILayout.TextArea(_log, GUILayout.MinHeight(80));
         }
-
-        static string Pretty(string raw)
-        {
-            try
-            {
-                var json = UnityEditor.EditorJsonUtility.FromJson<Wrapper>("{\"s\":"+raw+"}");
-                return raw; // EditorJsonUtility has no pretty-print; leave raw (already compact)
-            }
-            catch { return raw; }
-        }
-
-        [Serializable] class Wrapper { public string s; }
     }
 
-    // -------------- Intent Engine (minimal, supports set/append + typed values) --------------
     class IntentEngine
     {
         readonly IntentSpec _spec;
@@ -83,7 +68,6 @@ namespace Aim2Pro.AIGG.NL
 
                 matches++;
                 sb.AppendLine($"match: {i.name}");
-
                 foreach (var op in i.ops)
                 {
                     ApplyOp(result, op, m);
@@ -107,17 +91,14 @@ namespace Aim2Pro.AIGG.NL
                     dst.Append(op.path, ExpandValue(op.value, m));
                     break;
                 case "offset":
-                    // not used yet
-                    break;
                 case "custom":
-                    // no-op in tester
+                    // Not used in tester
                     break;
             }
         }
 
         static object ParseTyped(string v)
         {
-            // supports "...:int", "...:float", "true:bool"/"false:bool"
             int idx = v.LastIndexOf(':');
             if (idx > 0)
             {
@@ -135,25 +116,22 @@ namespace Aim2Pro.AIGG.NL
 
         static string ExpandValue(string v, Match m)
         {
-            // Replace $1:int with captured groups (leave :type for ParseTyped)
             for (int i = 1; i < m.Groups.Count; i++)
                 v = v.Replace($"${i}", m.Groups[i].Value);
             return v;
         }
     }
 
-    // -------------- Canonical Spec (very small JSON builder) --------------
     class CanonicalSpec
     {
         readonly Dictionary<string, object> root = new Dictionary<string, object> {
             { "track", new Dictionary<string, object>() },
             { "rules", new Dictionary<string, object>() },
-            { "commands", new List<string>() }
+            { "commands", new List<object>() }
         };
 
         public void Set(string path, object value)
         {
-            // path like $.track.length
             var parts = path.Trim().TrimStart('$','.').Split('.');
             Dictionary<string, object> cur = root;
             for (int i = 0; i < parts.Length; i++)
@@ -164,27 +142,17 @@ namespace Aim2Pro.AIGG.NL
                 {
                     var key = p.Substring(0, p.Length - 2);
                     if (!cur.TryGetValue(key, out var listObj) || listObj is not List<object> list)
-                    {
-                        list = new List<object>();
-                        cur[key] = list;
-                    }
-                    if (last) list.Add(value);
-                    else throw new Exception("Unsupported nested [] set");
+                    { list = new List<object>(); cur[key] = list; }
+                    if (last) list.Add(value); else throw new Exception("Unsupported nested [] set");
                     return;
                 }
                 else
                 {
-                    if (last)
-                    {
-                        cur[p] = value;
-                    }
+                    if (last) { cur[p] = value; }
                     else
                     {
                         if (!cur.TryGetValue(p, out var next) || next is not Dictionary<string, object> dict)
-                        {
-                            dict = new Dictionary<string, object>();
-                            cur[p] = dict;
-                        }
+                        { dict = new Dictionary<string, object>(); cur[p] = dict; }
                         cur = dict;
                     }
                 }
@@ -193,7 +161,6 @@ namespace Aim2Pro.AIGG.NL
 
         public void Append(string path, string value)
         {
-            // path like $.commands[]
             var parts = path.Trim().TrimStart('$','.').Split('.');
             Dictionary<string, object> cur = root;
             for (int i = 0; i < parts.Length; i++)
@@ -205,10 +172,7 @@ namespace Aim2Pro.AIGG.NL
                 {
                     var key = p.Substring(0, p.Length - 2);
                     if (!cur.TryGetValue(key, out var listObj))
-                    {
-                        listObj = new List<object>();
-                        cur[key] = listObj;
-                    }
+                    { listObj = new List<object>(); cur[key] = listObj; }
                     var list = (List<object>)listObj;
                     if (!last) throw new Exception("Unsupported nested [] append");
                     list.Add(value);
@@ -217,22 +181,15 @@ namespace Aim2Pro.AIGG.NL
                 else
                 {
                     if (!cur.TryGetValue(p, out var next) || next is not Dictionary<string, object> dict)
-                    {
-                        dict = new Dictionary<string, object>();
-                        cur[p] = dict;
-                    }
+                    { dict = new Dictionary<string, object>(); cur[p] = dict; }
                     cur = dict;
                 }
             }
         }
 
-        public string ToJson()
-        {
-            return MiniJson.Serialize(root);
-        }
+        public string ToJson() => MiniJson.Serialize(root);
     }
 
-    // -------------- Intents file loader (from Resources/spec/intents.json) --------------
     [Serializable] class IntentSpec { public List<Intent> intents;
         public static IntentSpec Load()
         {
@@ -245,7 +202,6 @@ namespace Aim2Pro.AIGG.NL
     [Serializable] class Intent { public string name; public string regex; public List<IntentOp> ops; }
     [Serializable] class IntentOp { public string op; public string path; public string value; }
 
-    // -------------- Tiny JSON serializer (no Newtonsoft) --------------
     static class MiniJson
     {
         public static string Serialize(object obj)
@@ -269,9 +225,7 @@ namespace Aim2Pro.AIGG.NL
                     sb.Append('}'); break;
                 case List<object> list:
                     sb.Append('['); for(int i=0;i<list.Count;i++){ if(i>0) sb.Append(','); Write(list[i],sb); } sb.Append(']'); break;
-                default:
-                    // try to reflect dictionary-ish
-                    sb.Append('\"').Append(o.ToString()).Append('\"'); break;
+                default: sb.Append('\"').Append(o.ToString()).Append('\"'); break;
             }
         }
     }
