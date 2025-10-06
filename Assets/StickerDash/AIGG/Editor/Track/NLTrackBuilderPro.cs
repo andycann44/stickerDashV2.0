@@ -25,7 +25,7 @@ namespace Aim2Pro.AIGG.Track
 
         void OnEnable()
         {
-            minSize = new Vector2(360, 160);
+            minSize = new Vector2(280, 160);
             EditorGUIUtility.labelWidth = 80f;
         }
 
@@ -41,35 +41,44 @@ namespace Aim2Pro.AIGG.Track
 
         void OnGUI()
         {
-            // NL field (single line until user grows it)
+            // NL (single line)
             GUILayout.Label("Natural Language", EditorStyles.boldLabel);
             var nlRect = GUILayoutUtility.GetRect(10, 20, GUILayout.ExpandWidth(true));
             nl = EditorGUI.TextField(nlRect, nl);
 
-            // Row 1: Build / Append / Clear (mini toolbar)
+            // Row A: Build / Append / Clear
             GUILayout.Space(4);
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                if (GUILayout.Button("Build",   EditorStyles.toolbarButton)) BuildFromNL(false);
-                if (GUILayout.Button("Append",  EditorStyles.toolbarButton)) { appendFromLast = true; BuildFromNL(true); }
+                if (GUILayout.Button("Build",  EditorStyles.toolbarButton)) BuildFromNL(false);
+                if (GUILayout.Button("Append", EditorStyles.toolbarButton)) { appendFromLast = true; BuildFromNL(true); }
                 GUILayout.FlexibleSpace();
-                if (GUILayout.Button("Clear",   EditorStyles.toolbarButton)) ClearTrack();
+                if (GUILayout.Button("Clear",  EditorStyles.toolbarButton)) ClearTrack();
             }
 
-            // Row 2: compact toggles + numeric fields
-            using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
+            // Options (stacked to fit narrow widths)
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
-                appendFromLast       = GUILayout.Toggle(appendFromLast,       "Append", EditorStyles.toolbarButton);
-                autoStraightFromSize = GUILayout.Toggle(autoStraightFromSize, "Auto",   EditorStyles.toolbarButton);
-                GUILayout.Space(6);
-                safeStartMeters  = FloatFieldToolbar("Safe S", safeStartMeters, 55);
-                safeFinishMeters = FloatFieldToolbar("Safe F", safeFinishMeters, 55);
-                GUILayout.Space(6);
-                groupRowsInHierarchy = GUILayout.Toggle(groupRowsInHierarchy, "Rows",  EditorStyles.toolbarButton);
-                verboseGaps          = GUILayout.Toggle(verboseGaps,          "Debug", EditorStyles.toolbarButton);
+                // Two columns
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    using (new EditorGUILayout.VerticalScope())
+                    {
+                        appendFromLast       = GUILayout.Toggle(appendFromLast,       "Append");
+                        autoStraightFromSize = GUILayout.Toggle(autoStraightFromSize, "Auto-straight");
+                        groupRowsInHierarchy = GUILayout.Toggle(groupRowsInHierarchy, "Group rows");
+                        verboseGaps          = GUILayout.Toggle(verboseGaps,          "Gap debug");
+                    }
+                    using (new EditorGUILayout.VerticalScope())
+                    {
+                        safeStartMeters  = EditorGUILayout.FloatField("Safe start (m)",  safeStartMeters);
+                        safeFinishMeters = EditorGUILayout.FloatField("Safe finish (m)", safeFinishMeters);
+                        GUILayout.FlexibleSpace();
+                    }
+                }
             }
 
-            // Collapsible help (compact)
+            // Collapsible help
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
                 var fold = SessionState.GetBool("A2P_TBPro_HelpFold", false);
