@@ -189,7 +189,6 @@ namespace Aim2Pro.AIGG.Track
         }
 
         // ==== Execute ====
-        private class Spec { public Track track; public Rules rules; public List<string> cmds; } // forward decl fix (not used)
         void Execute(Spec spec, bool append)
         {
             GameObject parent = GameObject.Find("/Track_Built");
