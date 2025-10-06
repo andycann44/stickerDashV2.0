@@ -58,7 +58,27 @@ namespace Aim2Pro.AIGG.NLBridge
             EditorGUILayout.HelpBox(_status, MessageType.Info);
         }
 
-        string TrySendToTrackLab(string json)
+        string InspectTrackLab()
+        {
+            try
+            {
+                var win = Resources.FindObjectsOfTypeAll<EditorWindow>()
+                    .FirstOrDefault(w => w.titleContent != null && w.titleContent.text.IndexOf("Track Lab", StringComparison.OrdinalIgnoreCase) >= 0);
+                if (win == null) return "Track Lab window not found.";
+                var t = win.GetType();
+                var fields = t.GetFields(System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic)
+                                .Where(f => f.FieldType == typeof(string)).ToArray();
+                var props  = t.GetProperties(System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic)
+                                .Where(p => p.PropertyType == typeof(string) && p.CanRead).ToArray();
+                Debug.Log( TrackLab type: {t.FullName}");
+                foreach (var f in fields) Debug.Log( string field: {f.Name} = "{(f.GetValue(win) as string ?? "")}"");
+                foreach (var p in props)  Debug.Log( string prop:  {p.Name} = "{(p.GetValue(win,null) as string ?? "")}"");
+                return  Logged {fields.Length} string fields and {props.Length} string props to Console. Look for JSON-looking ones.";
+            }
+            catch (Exception ex) { Debug.LogException(ex); return "Inspect failed (see Console)."; }
+        }
+
+    string TrySendToTrackLab(string json)
         {
             if (string.IsNullOrWhiteSpace(json)) return "No JSON to send.";
             try
