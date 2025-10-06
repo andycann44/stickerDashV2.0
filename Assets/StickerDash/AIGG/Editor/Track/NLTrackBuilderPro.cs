@@ -8,11 +8,6 @@ using UnityEngine;
 
 namespace Aim2Pro.AIGG.Track
 {
-    /// One-window NL → Track builder:
-    /// - Direct NL input (no clipboard)
-    /// - Build / Append / Clear
-    /// - Row gaps + tile gaps + safe start/finish
-    /// - Priority prefixes (P##|), or auto-assigned sensible priorities
     public class NLTrackBuilderPro : EditorWindow
     {
         [MenuItem("Window/Aim2Pro/Track Creator/Track Builder Pro")]
@@ -21,7 +16,6 @@ namespace Aim2Pro.AIGG.Track
         [TextArea(3, 8)]
         string nl = "120m by 3m, straight 100m, left curve 30°, gaps 8%, tile gaps 10%, chicane, slope 4%, seed 777";
 
-        // UI options
         bool appendFromLast = false;
         bool autoStraightFromSize = true;
         float safeStartMeters = 5f;
@@ -29,7 +23,6 @@ namespace Aim2Pro.AIGG.Track
         bool groupRowsInHierarchy = true;
         bool verboseGaps = false;
 
-        // Build state kept on parent so we can append later
         [Serializable]
         private class TrackBuildState : MonoBehaviour
         {
@@ -51,8 +44,8 @@ namespace Aim2Pro.AIGG.Track
                 autoStraightFromSize = GUILayout.Toggle(autoStraightFromSize, "Auto-straight from size", GUILayout.Width(170));
                 safeStartMeters = EditorGUILayout.FloatField("Safe start (m)", safeStartMeters);
                 safeFinishMeters = EditorGUILayout.FloatField("Safe finish (m)", safeFinishMeters);
-                groupRowsInHierarchy = GUILayout.Toggle(groupRowsInHierarchy, "Group rows", GUILayout.Width(120));
-                verboseGaps = GUILayout.Toggle(verboseGaps, "Gap debug", GUILayout.Width(110));
+                groupRowsInHierarchy = GUILayout.Toggle(groupRowsInHierarchy, "Group rows", GUILayout.Width(110));
+                verboseGaps = GUILayout.Toggle(verboseGaps, "Gap debug", GUILayout.Width(95));
             }
 
             using (new EditorGUILayout.HorizontalScope())
@@ -63,12 +56,11 @@ namespace Aim2Pro.AIGG.Track
             }
 
             EditorGUILayout.HelpBox(
-                "Understands: “Xm by Ym”, “straight Xm”, “left/right curve Ndg/°”, “gaps N%”, “tile gaps N%”, “chicane”, “slope N%”, “seed N”, “width Xm”.\n" +
+                "Understands: “Xm by Ym”, “straight Xm”, “left/right curve Ndg/°”, “left/right Ndg over N rows”, “gaps N%”, “tile gaps N%”, “chicane”, “slope N%”, “seed N”, “width Xm”.\n" +
                 "Priorities: use P10|… (lower runs earlier). Defaults: straight P10, curves P20, slope P40, gaps P50.",
                 MessageType.Info);
         }
 
-        // ==== Entry ====
         void BuildFromNL(bool forceAppend)
         {
             var spec = ParseNL(nl, autoStraightFromSize);
@@ -82,7 +74,6 @@ namespace Aim2Pro.AIGG.Track
             Debug.Log("[NLTrack] Cleared Track.");
         }
 
-        // ==== NL parsing (regex, self-contained) ====
         private class Spec { public Track track = new Track(); public Rules rules = new Rules(); public List<string> cmds = new List<string>(); }
         [Serializable] private class Track { public int length; public int width = 3; public int seed; }
         [Serializable] private class Rules { public bool safeZones = true; }
@@ -95,7 +86,7 @@ namespace Aim2Pro.AIGG.Track
             int GetInt(Match m, int group, int def = 0)
                 => (m.Success && int.TryParse(m.Groups[group].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var v)) ? v : def;
 
-            // size: "120m by 3m"
+            // size
             var mSize = Regex.Match(t, @"\b(\d+)\s*m\s*by\s*(\d+)\s*m\b", RegexOptions.IgnoreCase);
             if (mSize.Success)
             {
@@ -104,19 +95,29 @@ namespace Aim2Pro.AIGG.Track
                 if (autoStraight) spec.cmds.Add($"P10|AppendStraight:{spec.track.length}");
             }
 
-            // explicit width: "width 4m"
+            // explicit width
             var mWidth = Regex.Match(t, @"\bwidth\s*(\d+)\s*m\b", RegexOptions.IgnoreCase);
             if (mWidth.Success) spec.cmds.Add($"P08|SetWidth:{GetInt(mWidth, 1, spec.track.width)}");
 
-            // straight: "straight 80m"
+            // straight
             foreach (Match m in Regex.Matches(t, @"\bstraight\s*(\d+)\s*m\b", RegexOptions.IgnoreCase))
                 spec.cmds.Add($"P10|AppendStraight:{GetInt(m, 1, 10)}");
 
-            // left/right curves
-            foreach (Match m in Regex.Matches(t, @"\bleft\s*curve\s*(\d+)\s*(?:°|deg)?\b", RegexOptions.IgnoreCase))
-                spec.cmds.Add($"P20|AppendArc:left:{GetInt(m, 1, 15)}");
-            foreach (Match m in Regex.Matches(t, @"\bright\s*curve\s*(\d+)\s*(?:°|deg)?\b", RegexOptions.IgnoreCase))
-                spec.cmds.Add($"P20|AppendArc:right:{GetInt(m, 1, 15)}");
+            // curves: “left/right curve 30°|30deg”, also “30 degree left over 10 rows”
+            foreach (Match m in Regex.Matches(t, @"\b(left|right)\s*curve\s*(\d+)\s*(?:°|deg|degree|degrees)?\b(?:\s*over\s*(\d+)\s*rows?)?", RegexOptions.IgnoreCase))
+            {
+                var side = m.Groups[1].Value.ToLowerInvariant();
+                int deg = GetInt(m, 2, 15);
+                int steps = GetInt(m, 3, -1);
+                spec.cmds.Add(steps > 0 ? $"P20|AppendArc:{side}:{deg}:{steps}" : $"P20|AppendArc:{side}:{deg}");
+            }
+            foreach (Match m in Regex.Matches(t, @"\b(\d+)\s*(?:°|deg|degree|degrees)\s*(left|right)\b(?:\s*over\s*(\d+)\s*rows?)?", RegexOptions.IgnoreCase))
+            {
+                var side = m.Groups[2].Value.ToLowerInvariant();
+                int deg = GetInt(m, 1, 15);
+                int steps = GetInt(m, 3, -1);
+                spec.cmds.Add(steps > 0 ? $"P20|AppendArc:{side}:{deg}:{steps}" : $"P20|AppendArc:{side}:{deg}");
+            }
 
             // chicane
             if (Regex.IsMatch(t, @"\bchicanes?\b", RegexOptions.IgnoreCase))
@@ -129,11 +130,9 @@ namespace Aim2Pro.AIGG.Track
             foreach (Match m in Regex.Matches(t, @"\b(?:slope|incline)\s*(\d+)%\b", RegexOptions.IgnoreCase))
                 spec.cmds.Add($"P40|SlopePercent:{GetInt(m, 1, 3)}");
 
-            // row gaps (robust to trailing comma)
+            // row gaps / tile gaps (robust to trailing punctuation)
             foreach (Match m in Regex.Matches(t, @"\bgaps?(?:\s*of)?\s*(\d+)\s*%(?=\s|,|\.|;|$)", RegexOptions.IgnoreCase))
                 spec.cmds.Add($"P50|AddGaps:{GetInt(m, 1, 0)}");
-
-            // tile gaps (robust to trailing comma)
             foreach (Match m in Regex.Matches(t, @"\btile\s*gaps?(?:\s*of)?\s*(\d+)\s*%(?=\s|,|\.|;|$)", RegexOptions.IgnoreCase))
                 spec.cmds.Add($"P50|AddGapsTile:{GetInt(m, 1, 0)}");
 
@@ -144,14 +143,13 @@ namespace Aim2Pro.AIGG.Track
             // safe zones on
             spec.rules.safeZones = true;
 
-            // manual P##| commands passed through
+            // pass through manual P##|cmds
             foreach (Match m in Regex.Matches(t, @"\bP(\d{1,3})\|([^\s,;]+)\b", RegexOptions.IgnoreCase))
                 spec.cmds.Add(m.Value.Trim());
 
             return spec;
         }
 
-        // ==== Execute ====
         void Execute(Spec spec, bool append)
         {
             GameObject parent = GameObject.Find("/Track_Built");
@@ -176,12 +174,11 @@ namespace Aim2Pro.AIGG.Track
             }
 
             var rand = new System.Random(state.seed);
-            float tileStep = 1f; // 1 m per row
+            float tileStep = 1f;
             float gapRowPercent = 0f;
             float gapTilePercent = 0f;
             bool safeZones = spec.rules.safeZones;
 
-            // collect gap settings
             foreach (var raw in spec.cmds)
             {
                 var cmd = StripPriority(raw);
@@ -191,16 +188,13 @@ namespace Aim2Pro.AIGG.Track
                     gapRowPercent = ParseFloatArg(cmd, 1, gapRowPercent);
             }
 
-            // priorities then merge straights
             var prioritized = BuildPriorityList(spec.cmds);
             prioritized = MergeConsecutiveStraights(prioritized);
 
-            // estimate length for safe finish
             float estTotal = EstimateTotalLength(prioritized, tileStep);
             float startSafe = Mathf.Max(0f, safeStartMeters);
             float endSafe = Mathf.Max(0f, safeFinishMeters);
 
-            // execute
             foreach (var item in prioritized)
             {
                 var cmd = item.cmd;
@@ -235,6 +229,7 @@ namespace Aim2Pro.AIGG.Track
 
                         for (int i = 0; i < steps; i++)
                         {
+                            // Unity +Yaw is right; negative yaw is left
                             float yaw = left ? -stepDeg : stepDeg;
                             state.fwd = Quaternion.Euler(0f, yaw, 0f) * state.fwd;
                             state.pos += state.fwd * stepLen;
@@ -261,7 +256,6 @@ namespace Aim2Pro.AIGG.Track
             Debug.Log($"[NLTrack] Built ~{Mathf.RoundToInt(state.builtMeters)} m | width {state.trackWidth} m | tiles {parent.transform.childCount} | gaps row {gapRowPercent}% tile {gapTilePercent}% | seed {state.seed}");
         }
 
-        // ==== Row placement (gaps + safe zones) ====
         void PlaceRow(Transform parent, ref TrackBuildState st, float tileStep,
                       float safeStart, float safeFinish, float estTotal,
                       float gapRowPercent, float gapTilePercent, bool safeZones, System.Random rand)
@@ -269,7 +263,7 @@ namespace Aim2Pro.AIGG.Track
             bool inSafeStart = safeZones && (st.builtMeters < safeStart);
             bool inSafeEnd   = safeZones && ((estTotal - st.builtMeters) <= safeFinish);
 
-            // Row-level gap? skip entire row (and don't create a Row_XXXm folder)
+            // skip whole row? if so, don't create a row folder
             if (!inSafeStart && !inSafeEnd && gapRowPercent > 0f && rand.NextDouble() < (gapRowPercent / 100.0))
             {
                 if (verboseGaps) Debug.Log($"[NLTrack:gaps] SKIP ROW at ~{Mathf.RoundToInt(st.builtMeters)}m (row {gapRowPercent}%)");
@@ -277,7 +271,6 @@ namespace Aim2Pro.AIGG.Track
                 return;
             }
 
-            // Optional row folder
             Transform rowParent = parent;
             GameObject rowGO = null;
             if (groupRowsInHierarchy)
@@ -296,7 +289,6 @@ namespace Aim2Pro.AIGG.Track
 
             for (int j = 0; j < cols; j++)
             {
-                // Tile-level gap?
                 if (!inSafeStart && !inSafeEnd && gapTilePercent > 0f && rand.NextDouble() < (gapTilePercent / 100.0))
                 {
                     if (verboseGaps) Debug.Log($"[NLTrack:gaps] skip tile r~{Mathf.RoundToInt(st.builtMeters)}m c{j} (tile {gapTilePercent}%)");
@@ -312,7 +304,6 @@ namespace Aim2Pro.AIGG.Track
                 placedAny = true;
             }
 
-            // If no tiles were placed in this row, remove the row folder so the Hierarchy reflects the gap
             if (groupRowsInHierarchy && rowGO != null && !placedAny)
             {
                 UnityEngine.Object.DestroyImmediate(rowGO);
@@ -322,7 +313,6 @@ namespace Aim2Pro.AIGG.Track
             st.builtMeters += tileStep;
         }
 
-        // ==== Support ====
         private struct CmdItem { public int pri; public int idx; public string cmd; }
 
         List<CmdItem> BuildPriorityList(List<string> raw)
