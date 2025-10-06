@@ -293,22 +293,6 @@
           "value": "P08|SetWidth:$1:int"
         }
       ]
-    },
-    {
-      "name": "add-gaps-tile-percent",
-      "regex": "\\btile\\s*gaps?(?:\\s*of)?\\s*(\\d+)\\s*%\\b",
-      "ops": [
-        {
-          "op": "append",
-          "path": "$.commands[]",
-          "value": "P50|AddGapsTile:$1:int"
-        },
-        {
-          "op": "set",
-          "path": "$.rules.safeZones",
-          "value": "true:bool"
-        }
-      ]
     }
   ]
 }

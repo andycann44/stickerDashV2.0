@@ -68,12 +68,7 @@
         {
           "op": "append",
           "path": "$.commands[]",
-          "value": "P20|AppendArc:left:25:8"
-        },
-        {
-          "op": "append",
-          "path": "$.commands[]",
-          "value": "P20|AppendArc:right:25:8"
+          "value": "Chicane:default"
         }
       ]
     },
@@ -150,7 +145,7 @@
     },
     {
       "name": "add-gaps-percent",
-      "regex": "\\bgaps?(?:\\s*of)?\\s*(\\d+)\\s*%\\b",
+      "regex": "\\bgaps?\\s*(\\d+)%\\b",
       "ops": [
         {
           "op": "append",
@@ -291,22 +286,6 @@
           "op": "append",
           "path": "$.commands[]",
           "value": "P08|SetWidth:$1:int"
-        }
-      ]
-    },
-    {
-      "name": "add-gaps-tile-percent",
-      "regex": "\\btile\\s*gaps?(?:\\s*of)?\\s*(\\d+)\\s*%\\b",
-      "ops": [
-        {
-          "op": "append",
-          "path": "$.commands[]",
-          "value": "P50|AddGapsTile:$1:int"
-        },
-        {
-          "op": "set",
-          "path": "$.rules.safeZones",
-          "value": "true:bool"
         }
       ]
     }

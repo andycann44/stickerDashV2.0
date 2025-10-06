@@ -41,23 +41,23 @@
     },
     {
       "name": "add-curve-left-deg",
-      "regex": "\\bleft\\s*curve\\s*(\\d+)[°deg]*\\b",
+      "regex": "\\b(left)\\s*curve\\s*(\\d+)[°deg]*\\b",
       "ops": [
         {
           "op": "append",
           "path": "$.commands[]",
-          "value": "P20|AppendArc:left:$1:int"
+          "value": "AppendArc:left:$2:int"
         }
       ]
     },
     {
       "name": "add-curve-right-deg",
-      "regex": "\\bright\\s*curve\\s*(\\d+)[°deg]*\\b",
+      "regex": "\\b(right)\\s*curve\\s*(\\d+)[°deg]*\\b",
       "ops": [
         {
           "op": "append",
           "path": "$.commands[]",
-          "value": "P20|AppendArc:right:$1:int"
+          "value": "AppendArc:right:$2:int"
         }
       ]
     },
@@ -68,34 +68,29 @@
         {
           "op": "append",
           "path": "$.commands[]",
-          "value": "P20|AppendArc:left:25:8"
-        },
-        {
-          "op": "append",
-          "path": "$.commands[]",
-          "value": "P20|AppendArc:right:25:8"
+          "value": "Chicane:default"
         }
       ]
     },
     {
       "name": "add-hairpin-left",
-      "regex": "\\bhairpin\\s*left\\b",
+      "regex": "\\bhairpin\\s*(left)\\b",
       "ops": [
         {
           "op": "append",
           "path": "$.commands[]",
-          "value": "P20|AppendArc:left:180"
+          "value": "AppendArc:left:180"
         }
       ]
     },
     {
       "name": "add-hairpin-right",
-      "regex": "\\bhairpin\\s*right\\b",
+      "regex": "\\bhairpin\\s*(right)\\b",
       "ops": [
         {
           "op": "append",
           "path": "$.commands[]",
-          "value": "P20|AppendArc:right:180"
+          "value": "AppendArc:right:180"
         }
       ]
     },
@@ -106,7 +101,7 @@
         {
           "op": "append",
           "path": "$.commands[]",
-          "value": "P40|SlopePercent:$1:int"
+          "value": "SlopePercent:$1:int"
         }
       ]
     },
@@ -150,12 +145,12 @@
     },
     {
       "name": "add-gaps-percent",
-      "regex": "\\bgaps?(?:\\s*of)?\\s*(\\d+)\\s*%\\b",
+      "regex": "\\bgaps?\\s*(\\d+)%\\b",
       "ops": [
         {
           "op": "append",
           "path": "$.commands[]",
-          "value": "P50|AddGaps:$1:int"
+          "value": "AddGaps:$1:int"
         },
         {
           "op": "set",
@@ -257,56 +252,7 @@
         {
           "op": "append",
           "path": "$.commands[]",
-          "value": "P10|AppendStraight:$1:int"
-        }
-      ]
-    },
-    {
-      "name": "default-straight-from-size",
-      "regex": "\\b(\\d+)\\s*m\\s*by\\s*(\\d+)\\s*m\\b",
-      "ops": [
-        {
-          "op": "append",
-          "path": "$.commands[]",
           "value": "AppendStraight:$1:int"
-        }
-      ]
-    },
-    {
-      "name": "set-tracks",
-      "regex": "\\b(\\d+)\\s+tracks?\\b",
-      "ops": [
-        {
-          "op": "set",
-          "path": "$.difficulty.tracks",
-          "value": "$1:int"
-        }
-      ]
-    },
-    {
-      "name": "set-width",
-      "regex": "\\bwidth\\s*(\\d+)\\s*m\\b",
-      "ops": [
-        {
-          "op": "append",
-          "path": "$.commands[]",
-          "value": "P08|SetWidth:$1:int"
-        }
-      ]
-    },
-    {
-      "name": "add-gaps-tile-percent",
-      "regex": "\\btile\\s*gaps?(?:\\s*of)?\\s*(\\d+)\\s*%\\b",
-      "ops": [
-        {
-          "op": "append",
-          "path": "$.commands[]",
-          "value": "P50|AddGapsTile:$1:int"
-        },
-        {
-          "op": "set",
-          "path": "$.rules.safeZones",
-          "value": "true:bool"
         }
       ]
     }

@@ -1,18 +1,5 @@
-{
-  "macros": {
-    "s_bend": { "expandsTo": [ {"op":"CurveRows"}, {"op":"CurveRows"} ],
-      "args": ["start","end","pattern","deg"] },
-
-    "random_holes": { "expandsTo": [ {"op":"DeleteTilesInRow"} ],
-      "args": ["densityPercent"] },
-
-    "insert_jump_gaps": { "expandsTo": [ {"op":"DeleteRow"} ],
-      "args": ["count","minSpacingRows","avoidCurves"] },
-
-    "random_straight_slopes": { "expandsTo": [ {"op":"SlopeRows"} ],
-      "args": [] },
-
-    "spline_smooth": { "expandsTo": [ {"op":"BuildSplineFromTrack"}, {"op":"Resample"} ],
-      "args": ["densityRowsPerMeter"] }
-  }
-}
+{ "specVersion":"1.0.0","macros":[
+  {"name":"Chicane:default","steps":[ "AppendArc:left:25:steps=8","AppendArc:right:25:steps=8" ]},
+  {"name":"Spiral360Underpass","steps":[ "AppendArc:left:360:steps=64","OffsetRowsY:delta=-3.0" ]},
+  {"name":"TutorialStraight","steps":[ "SetWidth:3","AppendStraight:120" ]}
+] }
