@@ -10,6 +10,12 @@ namespace Aim2Pro.AIGG.Track
 {
     public class NLTrackBuilderPro : EditorWindow
     {
+        void OnEnable()
+        {
+            minSize = new Vector2(360, 160);
+            EditorGUIUtility.labelWidth = 80f;
+        }
+    {
         [MenuItem("Window/Aim2Pro/Track Creator/Track Builder Pro")]
         public static void Open() => GetWindow<NLTrackBuilderPro>("Track Builder Pro");
 
@@ -35,30 +41,60 @@ namespace Aim2Pro.AIGG.Track
 
         void OnGUI()
         {
+            // NL field (single line until user grows it)
             GUILayout.Label("Natural Language", EditorStyles.boldLabel);
-            nl = EditorGUILayout.TextArea(nl, GUILayout.MinHeight(60));
+            var nlRect = GUILayoutUtility.GetRect(10, 20, GUILayout.ExpandWidth(true));
+            nl = EditorGUI.TextField(nlRect, nl);
 
-            using (new EditorGUILayout.HorizontalScope())
+            // Row 1: Build / Append / Clear (mini toolbar)
+            GUILayout.Space(4);
+            using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                appendFromLast = GUILayout.Toggle(appendFromLast, "Append from last", GUILayout.Width(140));
-                autoStraightFromSize = GUILayout.Toggle(autoStraightFromSize, "Auto-straight from size", GUILayout.Width(170));
-                safeStartMeters = EditorGUILayout.FloatField("Safe start (m)", safeStartMeters);
-                safeFinishMeters = EditorGUILayout.FloatField("Safe finish (m)", safeFinishMeters);
-                groupRowsInHierarchy = GUILayout.Toggle(groupRowsInHierarchy, "Group rows", GUILayout.Width(110));
-                verboseGaps = GUILayout.Toggle(verboseGaps, "Gap debug", GUILayout.Width(95));
+                if (GUILayout.Button("Build", EditorStyles.toolbarButton)) BuildFromNL(false);
+                if (GUILayout.Button("Append", EditorStyles.toolbarButton)) { appendFromLast = true; BuildFromNL(true); }
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button("Clear", EditorStyles.toolbarButton)) ClearTrack();
             }
 
-            using (new EditorGUILayout.HorizontalScope())
+            // Row 2: compact toggles + numeric fields
+            using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                if (GUILayout.Button("Build from NL", GUILayout.Height(26))) BuildFromNL(false);
-                if (GUILayout.Button("Append from NL", GUILayout.Height(26))) { appendFromLast = true; BuildFromNL(true); }
-                if (GUILayout.Button("Clear Track", GUILayout.Height(26))) ClearTrack();
+                appendFromLast      = GUILayout.Toggle(appendFromLast, "Append", EditorStyles.toolbarButton);
+                autoStraightFromSize= GUILayout.Toggle(autoStraightFromSize, "Auto", EditorStyles.toolbarButton);
+                GUILayout.Space(6);
+                safeStartMeters  = FloatFieldToolbar("Safe S", safeStartMeters, 55);
+                safeFinishMeters = FloatFieldToolbar("Safe F", safeFinishMeters, 55);
+                GUILayout.Space(6);
+                groupRowsInHierarchy = GUILayout.Toggle(groupRowsInHierarchy, "Rows", EditorStyles.toolbarButton);
+                verboseGaps          = GUILayout.Toggle(verboseGaps, "Debug", EditorStyles.toolbarButton);
             }
 
-            EditorGUILayout.HelpBox(
-                "Understands: “Xm by Ym”, “straight Xm”, “left/right curve Ndg/°”, “left/right Ndg over N rows”, “gaps N%”, “tile gaps N%”, “chicane”, “slope N%”, “seed N”, “width Xm”.\n" +
-                "Priorities: use P10|… (lower runs earlier). Defaults: straight P10, curves P20, slope P40, gaps P50.",
-                MessageType.Info);
+            // Collapsible help (compact)
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                var fold = SessionState.GetBool("A2P_TBPro_HelpFold", false);
+                var nf = EditorGUILayout.Foldout(fold, "Short help", true);
+                if (nf != fold) SessionState.SetBool("A2P_TBPro_HelpFold", nf);
+                if (nf)
+                {
+                    EditorGUILayout.LabelField(
+                        "Understands: \"Xm by Ym\", \"straight Xm\", \"left/right curve Ndg\", " +
+                        "\"Ndg left/right over N rows\", \"gaps N%\", \"tile gaps N%\", " +
+                        "\"chicane\", \"slope N%\", \"seed N\", \"width Xm\".\n" +
+                        "Priorities with P##| (lower runs earlier). Defaults: straight P10, curves P20, slope P40, gaps P50.",
+                        EditorStyles.wordWrappedMiniLabel);
+                }
+            }
+        }
+
+        // compact numeric field inside toolbar rows
+        float FloatFieldToolbar(string label, float value, float labelWidth)
+        {
+            var prev = EditorGUIUtility.labelWidth;
+            EditorGUIUtility.labelWidth = labelWidth;
+            value = EditorGUILayout.FloatField(label, value, GUILayout.Width(labelWidth + 55));
+            EditorGUIUtility.labelWidth = prev;
+            return value;
         }
 
         void BuildFromNL(bool forceAppend)
