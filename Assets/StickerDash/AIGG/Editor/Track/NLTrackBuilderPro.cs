@@ -231,7 +231,7 @@ namespace Aim2Pro.AIGG.Track
 
                         for (int i = 0; i < steps; i++)
                         {
-                            float yaw = left ? stepDeg : -stepDeg;
+                            float yaw = left ? -stepDeg : stepDeg;
                             state.fwd = Quaternion.Euler(0f, yaw, 0f) * state.fwd;
                             state.pos += state.fwd * stepLen;
                             PlaceRow(parent.transform, ref state, tileStep, startSafe, endSafe, estTotal,
