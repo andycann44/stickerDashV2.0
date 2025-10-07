@@ -1,3 +1,4 @@
+#if false
 #if UNITY_EDITOR
 using System;
 using System.Linq;
@@ -145,4 +146,6 @@ namespace Aim2Pro.AIGG.NLBridge
         }
     }
 }
+#endif
+
 #endif

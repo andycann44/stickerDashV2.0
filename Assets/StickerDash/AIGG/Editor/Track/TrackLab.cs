@@ -1,3 +1,4 @@
+#if false
 using UnityEditor;
 using UnityEngine;
 using Aim2Pro.AIGG.NL;
@@ -327,3 +328,5 @@ namespace Aim2Pro.TrackCreator
         }
     }
 }
+
+#endif

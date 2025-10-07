@@ -1,3 +1,4 @@
+#if false
 #if UNITY_EDITOR
 using System;
 using System.Reflection;
@@ -67,4 +68,6 @@ namespace Aim2Pro.AIGG.NL {
     }
   }
 }
+#endif
+
 #endif

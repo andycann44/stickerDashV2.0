@@ -13,22 +13,15 @@ namespace Aim2Pro.AIGG.Track
         [MenuItem("Window/Aim2Pro/Track Creator/Track Builder Pro")]
         public static void Open() => GetWindow<NLTrackBuilderPro>("Track Builder Pro");
 
-        // UI state
         [TextArea(3, 8)]
-        string nl = "120m by 3m, straight 100m, left curve 30 deg, gaps 8%, tile gaps 10%, chicane, slope 4%, seed 777";
+        string nl = "120m by 3m, straight 100m, left curve 30°, gaps 8%, tile gaps 10%, chicane, slope 4%, seed 777";
+
         bool appendFromLast = false;
         bool autoStraightFromSize = true;
         float safeStartMeters = 5f;
         float safeFinishMeters = 5f;
         bool groupRowsInHierarchy = true;
         bool verboseGaps = false;
-
-        // Compact, ASCII-only help text (verbatim string)
-        const string HelpText = @"
-Understands: ""Xm by Ym"", ""straight Xm"", ""left/right curve Ndg"",
-""Ndg left/right over N rows"", ""gaps N%"", ""tile gaps N%"",
-""chicane"", ""slope N%"", ""seed N"", ""width Xm"".
-Priorities with P##| (lower runs earlier). Defaults: straight P10, curves P20, slope P40, gaps P50.";
 
         void OnEnable()
         {
@@ -48,9 +41,10 @@ Priorities with P##| (lower runs earlier). Defaults: straight P10, curves P20, s
 
         void OnGUI()
         {
-            // NL (multi-line)
+            // NL (single line)
             GUILayout.Label("Natural Language", EditorStyles.boldLabel);
-            nl = EditorGUILayout.TextArea(nl, GUILayout.MinHeight(120));
+            var nlRect = GUILayoutUtility.GetRect(10, 20, GUILayout.ExpandWidth(true));
+            nl = EditorGUI.TextField(nlRect, nl);
 
             // Row A: Build / Append / Clear
             GUILayout.Space(4);
@@ -62,9 +56,10 @@ Priorities with P##| (lower runs earlier). Defaults: straight P10, curves P20, s
                 if (GUILayout.Button("Clear",  EditorStyles.toolbarButton)) ClearTrack();
             }
 
-            // Options (stacked for narrow panels)
+            // Options (stacked to fit narrow widths)
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
+                // Two columns
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     using (new EditorGUILayout.VerticalScope())
@@ -89,11 +84,29 @@ Priorities with P##| (lower runs earlier). Defaults: straight P10, curves P20, s
                 var fold = SessionState.GetBool("A2P_TBPro_HelpFold", false);
                 var nf = EditorGUILayout.Foldout(fold, "Short help", true);
                 if (nf != fold) SessionState.SetBool("A2P_TBPro_HelpFold", nf);
-                if (nf) EditorGUILayout.LabelField(HelpText, EditorStyles.wordWrappedMiniLabel);
+                if (nf)
+                {
+                    EditorGUILayout.LabelField(
+                        "Understands: \"Xm by Ym\", \"straight Xm\", \"left/right curve Ndg\", " +
+                        "\"Ndg left/right over N rows\", \"gaps N%\", \"tile gaps N%\", " +
+                        "\"chicane\", \"slope N%\", \"seed N\", \"width Xm\".\n" +
+                        "Priorities with P##| (lower runs earlier). Defaults: straight P10, curves P20, slope P40, gaps P50.",
+                        EditorStyles.wordWrappedMiniLabel);
+                }
             }
         }
 
-        // Entry
+        // compact numeric field inside toolbar rows
+        float FloatFieldToolbar(string label, float value, float labelWidth)
+        {
+            var prev = EditorGUIUtility.labelWidth;
+            EditorGUIUtility.labelWidth = labelWidth;
+            value = EditorGUILayout.FloatField(label, value, GUILayout.Width(labelWidth + 55));
+            EditorGUIUtility.labelWidth = prev;
+            return value;
+        }
+
+        // ==== Entry ====
         void BuildFromNL(bool forceAppend)
         {
             var spec = ParseNL(nl, autoStraightFromSize);
@@ -107,17 +120,11 @@ Priorities with P##| (lower runs earlier). Defaults: straight P10, curves P20, s
             Debug.Log("[NLTrack] Cleared Track.");
         }
 
-        // Spec
-        private class Spec
-        {
-            public Track track = new Track();
-            public Rules rules = new Rules();
-            public List<string> cmds = new List<string>();
-        }
+        // ==== NL parsing (regex, self-contained) ====
+        private class Spec { public Track track = new Track(); public Rules rules = new Rules(); public List<string> cmds = new List<string>(); }
         [Serializable] private class Track { public int length; public int width = 3; public int seed; }
         [Serializable] private class Rules { public bool safeZones = true; }
 
-        // Parse NL -> Spec
         Spec ParseNL(string text, bool autoStraight)
         {
             var spec = new Spec();
@@ -139,11 +146,11 @@ Priorities with P##| (lower runs earlier). Defaults: straight P10, curves P20, s
             var mWidth = Regex.Match(t, @"\bwidth\s*(\d+)\s*m\b", RegexOptions.IgnoreCase);
             if (mWidth.Success) spec.cmds.Add($"P08|SetWidth:{GetInt(mWidth, 1, spec.track.width)}");
 
-            // straight N m
+            // straight
             foreach (Match m in Regex.Matches(t, @"\bstraight\s*(\d+)\s*m\b", RegexOptions.IgnoreCase))
                 spec.cmds.Add($"P10|AppendStraight:{GetInt(m, 1, 10)}");
 
-            // curves
+            // curves: “left/right curve 30°|deg”, also “30 degree left over 10 rows”
             foreach (Match m in Regex.Matches(t, @"\b(left|right)\s*curve\s*(\d+)\s*(?:°|deg|degree|degrees)?\b(?:\s*over\s*(\d+)\s*rows?)?", RegexOptions.IgnoreCase))
             {
                 var side = m.Groups[1].Value.ToLowerInvariant();
@@ -170,7 +177,7 @@ Priorities with P##| (lower runs earlier). Defaults: straight P10, curves P20, s
             foreach (Match m in Regex.Matches(t, @"\b(?:slope|incline)\s*(\d+)%\b", RegexOptions.IgnoreCase))
                 spec.cmds.Add($"P40|SlopePercent:{GetInt(m, 1, 3)}");
 
-            // row gaps / tile gaps
+            // row gaps / tile gaps (robust to trailing punctuation)
             foreach (Match m in Regex.Matches(t, @"\bgaps?(?:\s*of)?\s*(\d+)\s*%(?=\s|,|\.|;|$)", RegexOptions.IgnoreCase))
                 spec.cmds.Add($"P50|AddGaps:{GetInt(m, 1, 0)}");
             foreach (Match m in Regex.Matches(t, @"\btile\s*gaps?(?:\s*of)?\s*(\d+)\s*%(?=\s|,|\.|;|$)", RegexOptions.IgnoreCase))
@@ -183,14 +190,14 @@ Priorities with P##| (lower runs earlier). Defaults: straight P10, curves P20, s
             // safe zones on
             spec.rules.safeZones = true;
 
-            // manual priority pass-through P##|
+            // pass through manual P##|cmds
             foreach (Match m in Regex.Matches(t, @"\bP(\d{1,3})\|([^\s,;]+)\b", RegexOptions.IgnoreCase))
                 spec.cmds.Add(m.Value.Trim());
 
             return spec;
         }
 
-        // Execute Spec
+        // ==== Execute ====
         void Execute(Spec spec, bool append)
         {
             GameObject parent = GameObject.Find("/Track_Built");
@@ -220,7 +227,6 @@ Priorities with P##| (lower runs earlier). Defaults: straight P10, curves P20, s
             float gapTilePercent = 0f;
             bool safeZones = spec.rules.safeZones;
 
-            // read gap settings first
             foreach (var raw in spec.cmds)
             {
                 var cmd0 = StripPriority(raw);
@@ -271,7 +277,8 @@ Priorities with P##| (lower runs earlier). Defaults: straight P10, curves P20, s
 
                         for (int i = 0; i < steps; i++)
                         {
-                            float yaw = left ? -stepDeg : stepDeg; // negative yaw = left, positive = right
+                            // Unity +Yaw is right; negative yaw is left
+                            float yaw = left ? -stepDeg : stepDeg;
                             state.fwd = Quaternion.Euler(0f, yaw, 0f) * state.fwd;
                             state.pos += state.fwd * stepLen;
                             PlaceRow(parent.transform, ref state, tileStep, startSafe, endSafe, estTotal,
@@ -304,7 +311,7 @@ Priorities with P##| (lower runs earlier). Defaults: straight P10, curves P20, s
             bool inSafeStart = safeZones && (st.builtMeters < safeStart);
             bool inSafeEnd   = safeZones && ((estTotal - st.builtMeters) <= safeFinish);
 
-            // skip entire row (no row folder)
+            // Row-level gap? skip entire row (and don't create a Row_XXXm folder)
             if (!inSafeStart && !inSafeEnd && gapRowPercent > 0f && rand.NextDouble() < (gapRowPercent / 100.0))
             {
                 if (verboseGaps) Debug.Log($"[NLTrack:gaps] SKIP ROW at ~{Mathf.RoundToInt(st.builtMeters)}m (row {gapRowPercent}%)");
@@ -312,6 +319,7 @@ Priorities with P##| (lower runs earlier). Defaults: straight P10, curves P20, s
                 return;
             }
 
+            // Optional row folder
             Transform rowParent = parent;
             GameObject rowGO = null;
             if (groupRowsInHierarchy)
@@ -330,6 +338,7 @@ Priorities with P##| (lower runs earlier). Defaults: straight P10, curves P20, s
 
             for (int j = 0; j < cols; j++)
             {
+                // Tile-level gap?
                 if (!inSafeStart && !inSafeEnd && gapTilePercent > 0f && rand.NextDouble() < (gapTilePercent / 100.0))
                 {
                     if (verboseGaps) Debug.Log($"[NLTrack:gaps] skip tile r~{Mathf.RoundToInt(st.builtMeters)}m c{j} (tile {gapTilePercent}%)");
@@ -345,6 +354,7 @@ Priorities with P##| (lower runs earlier). Defaults: straight P10, curves P20, s
                 placedAny = true;
             }
 
+            // If no tiles were placed, remove the empty row folder
             if (groupRowsInHierarchy && rowGO != null && !placedAny)
             {
                 UnityEngine.Object.DestroyImmediate(rowGO);
@@ -354,7 +364,6 @@ Priorities with P##| (lower runs earlier). Defaults: straight P10, curves P20, s
             st.builtMeters += tileStep;
         }
 
-        // Helpers
         private struct CmdItem { public int pri; public int idx; public string cmd; }
 
         List<CmdItem> BuildPriorityList(List<string> raw)

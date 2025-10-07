@@ -1,4 +1,314 @@
-{ "intents": [
-  {"name":"set-tracks","regex":"\\b(\\d+)\\s+tracks?\\b","ops":[{"op":"set","path":"$.difficulty.tracks","value":"$1:int"}]},
-  {"name":"seed","regex":"\\bseed\\s+(\\d+)\\b","ops":[{"op":"set","path":"$.rand.seed","value":"$1:int"}]}
-]}
+﻿{
+  "specVersion": "1.0.0",
+  "intents": [
+    {
+      "name": "set-track-size",
+      "regex": "\\b(\\d+)\\s*m\\s*by\\s*(\\d+)\\s*m\\b",
+      "ops": [
+        {
+          "op": "set",
+          "path": "$.track.length",
+          "value": "$1:int"
+        },
+        {
+          "op": "set",
+          "path": "$.track.width",
+          "value": "$2:int"
+        }
+      ]
+    },
+    {
+      "name": "set-seed",
+      "regex": "\\bseed\\s*(\\d+)\\b",
+      "ops": [
+        {
+          "op": "set",
+          "path": "$.track.seed",
+          "value": "$1:int"
+        }
+      ]
+    },
+    {
+      "name": "set-difficulty",
+      "regex": "\\b(easy|medium|hard)\\b",
+      "ops": [
+        {
+          "op": "set",
+          "path": "$.track.difficulty",
+          "value": "$1"
+        }
+      ]
+    },
+    {
+      "name": "add-curve-left-deg",
+      "regex": "\\bleft\\s*curve\\s*(\\d+)[°deg]*\\b",
+      "ops": [
+        {
+          "op": "append",
+          "path": "$.commands[]",
+          "value": "P20|AppendArc:left:$1:int"
+        }
+      ]
+    },
+    {
+      "name": "add-curve-right-deg",
+      "regex": "\\bright\\s*curve\\s*(\\d+)[°deg]*\\b",
+      "ops": [
+        {
+          "op": "append",
+          "path": "$.commands[]",
+          "value": "P20|AppendArc:right:$1:int"
+        }
+      ]
+    },
+    {
+      "name": "add-chicane",
+      "regex": "\\bchicanes?\\b",
+      "ops": [
+        {
+          "op": "append",
+          "path": "$.commands[]",
+          "value": "P20|AppendArc:left:25:8"
+        },
+        {
+          "op": "append",
+          "path": "$.commands[]",
+          "value": "P20|AppendArc:right:25:8"
+        }
+      ]
+    },
+    {
+      "name": "add-hairpin-left",
+      "regex": "\\bhairpin\\s*left\\b",
+      "ops": [
+        {
+          "op": "append",
+          "path": "$.commands[]",
+          "value": "P20|AppendArc:left:180"
+        }
+      ]
+    },
+    {
+      "name": "add-hairpin-right",
+      "regex": "\\bhairpin\\s*right\\b",
+      "ops": [
+        {
+          "op": "append",
+          "path": "$.commands[]",
+          "value": "P20|AppendArc:right:180"
+        }
+      ]
+    },
+    {
+      "name": "add-incline-percent",
+      "regex": "\\b(?:incline|slope)\\s*(\\d+)%\\b",
+      "ops": [
+        {
+          "op": "append",
+          "path": "$.commands[]",
+          "value": "P40|SlopePercent:$1:int"
+        }
+      ]
+    },
+    {
+      "name": "fork-rejoin-positions",
+      "regex": "\\bfork\\s*at\\s*(\\d+)\\s*m\\s*(?:rejoin\\s*at\\s*(\\d+)\\s*m)?\\b",
+      "ops": [
+        {
+          "op": "append",
+          "path": "$.commands[]",
+          "value": "ForkAt:$1:int"
+        },
+        {
+          "op": "append",
+          "path": "$.commands[]",
+          "value": "RejoinAt:$2:int"
+        }
+      ]
+    },
+    {
+      "name": "simple-fork",
+      "regex": "\\bfork\\b",
+      "ops": [
+        {
+          "op": "append",
+          "path": "$.commands[]",
+          "value": "Fork"
+        }
+      ]
+    },
+    {
+      "name": "simple-rejoin",
+      "regex": "\\brejoin\\b",
+      "ops": [
+        {
+          "op": "append",
+          "path": "$.commands[]",
+          "value": "Rejoin"
+        }
+      ]
+    },
+    {
+      "name": "add-gaps-percent",
+      "regex": "\\bgaps?(?:\\s*of)?\\s*(\\d+)\\s*%\\b",
+      "ops": [
+        {
+          "op": "append",
+          "path": "$.commands[]",
+          "value": "P50|AddGaps:$1:int"
+        },
+        {
+          "op": "set",
+          "path": "$.rules.safeZones",
+          "value": "true:bool"
+        }
+      ]
+    },
+    {
+      "name": "safe-start-finish",
+      "regex": "\\bsafe\\s*(?:start\\s*finish|finish)\\b",
+      "ops": [
+        {
+          "op": "set",
+          "path": "$.rules.safeZones",
+          "value": "true:bool"
+        }
+      ]
+    },
+    {
+      "name": "start-countdown",
+      "regex": "\\b(add\\s*)?start\\s*countdown\\b",
+      "ops": [
+        {
+          "op": "set",
+          "path": "$.track.startCountdown",
+          "value": "true:bool"
+        }
+      ]
+    },
+    {
+      "name": "perfect-start-boost",
+      "regex": "\\bperfect\\s*start\\s*boost\\s*on\\b",
+      "ops": [
+        {
+          "op": "set",
+          "path": "$.track.perfectStart.enabled",
+          "value": "true:bool"
+        },
+        {
+          "op": "set",
+          "path": "$.track.perfectStart.windowMs",
+          "value": "80:int"
+        },
+        {
+          "op": "set",
+          "path": "$.track.perfectStart.boostSeconds",
+          "value": "1.0:float"
+        },
+        {
+          "op": "set",
+          "path": "$.track.perfectStart.boostScale",
+          "value": "1.15:float"
+        }
+      ]
+    },
+    {
+      "name": "add-dartboards-checkpoints",
+      "regex": "\\b(add|place)\\s+(dartboards|checkpoints)\\b",
+      "ops": [
+        {
+          "op": "set",
+          "path": "$.track.addDartboards",
+          "value": "true:bool"
+        }
+      ]
+    },
+    {
+      "name": "spiral-underpass",
+      "regex": "\\bspiral\\s*360\\b",
+      "ops": [
+        {
+          "op": "append",
+          "path": "$.commands[]",
+          "value": "Spiral360Underpass"
+        }
+      ]
+    },
+    {
+      "name": "alternating-arcs",
+      "regex": "\\balternating\\s+left\\s*(\\d+)[°deg]*\\s*right\\s*(\\d+)[°deg]*\\b",
+      "ops": [
+        {
+          "op": "append",
+          "path": "$.commands[]",
+          "value": "AppendArc:left:$1:int"
+        },
+        {
+          "op": "append",
+          "path": "$.commands[]",
+          "value": "AppendArc:right:$2:int"
+        }
+      ]
+    },
+    {
+      "name": "append-straight-length",
+      "regex": "\\bstraight\\s*(\\d+)\\s*m\\b",
+      "ops": [
+        {
+          "op": "append",
+          "path": "$.commands[]",
+          "value": "P10|AppendStraight:$1:int"
+        }
+      ]
+    },
+    {
+      "name": "default-straight-from-size",
+      "regex": "\\b(\\d+)\\s*m\\s*by\\s*(\\d+)\\s*m\\b",
+      "ops": [
+        {
+          "op": "append",
+          "path": "$.commands[]",
+          "value": "AppendStraight:$1:int"
+        }
+      ]
+    },
+    {
+      "name": "set-tracks",
+      "regex": "\\b(\\d+)\\s+tracks?\\b",
+      "ops": [
+        {
+          "op": "set",
+          "path": "$.difficulty.tracks",
+          "value": "$1:int"
+        }
+      ]
+    },
+    {
+      "name": "set-width",
+      "regex": "\\bwidth\\s*(\\d+)\\s*m\\b",
+      "ops": [
+        {
+          "op": "append",
+          "path": "$.commands[]",
+          "value": "P08|SetWidth:$1:int"
+        }
+      ]
+    },
+    {
+      "name": "add-gaps-tile-percent",
+      "regex": "\\btile\\s*gaps?(?:\\s*of)?\\s*(\\d+)\\s*%\\b",
+      "ops": [
+        {
+          "op": "append",
+          "path": "$.commands[]",
+          "value": "P50|AddGapsTile:$1:int"
+        },
+        {
+          "op": "set",
+          "path": "$.rules.safeZones",
+          "value": "true:bool"
+        }
+      ]
+    }
+  ]
+}
