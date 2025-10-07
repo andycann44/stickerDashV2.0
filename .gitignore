@@ -47,3 +47,6 @@ UserSettings/
 
 # Stickerdash project status (keep)
 !/StickerDash_Status/
+
+# macOS
+.DS_Store

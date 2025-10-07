@@ -125,11 +125,19 @@ namespace Aim2Pro.AIGG.Track
             foreach (Match m in Regex.Matches(t, @"\b(?:slope|incline)\s*(\d+)%\b", RegexOptions.IgnoreCase))
                 spec.cmds.Add($"P40|SlopePercent:{GetInt(m, 1, 3)}");
 
+<<<<<<< HEAD
             // row gaps  (allow comma after %)
             foreach (Match m in Regex.Matches(t, @"\bgaps?(?:\s*of)?\s*(\d+)\s*%(?=\s|,|\.|;|$)", RegexOptions.IgnoreCase))
                 spec.cmds.Add($"P50|AddGaps:{GetInt(m, 1, 0)}");
 
             // tile gaps (allow comma after %)
+=======
+            // row gaps (robust to trailing comma)
+            foreach (Match m in Regex.Matches(t, @"\bgaps?(?:\s*of)?\s*(\d+)\s*%(?=\s|,|\.|;|$)", RegexOptions.IgnoreCase))
+                spec.cmds.Add($"P50|AddGaps:{GetInt(m, 1, 0)}");
+
+            // tile gaps (robust to trailing comma)
+>>>>>>> 6e11856 (feat(track): replace placeholder with working NLTrackBuilderPro (row+tile gaps, priorities, append/clear, safe zones))
             foreach (Match m in Regex.Matches(t, @"\btile\s*gaps?(?:\s*of)?\s*(\d+)\s*%(?=\s|,|\.|;|$)", RegexOptions.IgnoreCase))
                 spec.cmds.Add($"P50|AddGapsTile:{GetInt(m, 1, 0)}");
 
@@ -142,7 +150,11 @@ namespace Aim2Pro.AIGG.Track
 
             // manual P##| commands passed through
             foreach (Match m in Regex.Matches(t, @"\bP(\d{1,3})\|([^\s,;]+)\b", RegexOptions.IgnoreCase))
+<<<<<<< HEAD
                 spec.cmds.Add(m.Value.Trim());
+=======
+                spec.cmds.Add(m.Value.trim());
+>>>>>>> 6e11856 (feat(track): replace placeholder with working NLTrackBuilderPro (row+tile gaps, priorities, append/clear, safe zones))
 
             return spec;
         }
