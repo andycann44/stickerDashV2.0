@@ -1,3 +1,4 @@
+#if false
 #if UNITY_EDITOR
 using UnityEditor;
 using UnityEngine;
@@ -16,4 +17,6 @@ namespace Aim2Pro.AIGG.Track {
     }
   }
 }
+#endif
+
 #endif
