@@ -10,8 +10,8 @@ namespace Aim2Pro.AIGG.NLBridge
 {
     public class NLToTrackLabBridge : EditorWindow
     {
-        [MenuItem("Window/Aim2Pro/Test/NL â†’ TrackLab Bridge")]
-        public static void Open() => GetWindow<NLToTrackLabBridge>("NL â†’ TrackLab");
+        [MenuItem("Window/Aim2Pro/Test/NL -> TrackLab Bridge")]
+        public static void Open() => GetWindow<NLToTrackLabBridge>("NL -> TrackLab");
 
         string _nl = "120m by 3m, left curve 30Â°, seed 101, add start countdown, add dartboards";
         string _json = "";
@@ -24,7 +24,7 @@ namespace Aim2Pro.AIGG.NLBridge
 
             using (new EditorGUILayout.HorizontalScope())
             {
-                if (GUILayout.Button("Parse NL â†’ JSON", GUILayout.Height(26)))
+                if (GUILayout.Button("Parse NL "†’ JSON", GUILayout.Height(26)))
                 {
                     try
                     {
@@ -102,7 +102,7 @@ namespace Aim2Pro.AIGG.NLBridge
                     if (p != null && p.CanWrite && p.PropertyType == typeof(string))
                     { p.SetValue(trackLabWin, json); trackLabWin.Repaint(); return $"Set {name} on Track Lab."; }
                 }
-                return "Could not find jsonSpecInline on Track Lab. Clipboard copy works â€” paste manually.";
+                return "Could not find jsonSpecInline on Track Lab. Clipboard copy works ""” paste manually.";
             }
             catch (Exception ex)
             {
