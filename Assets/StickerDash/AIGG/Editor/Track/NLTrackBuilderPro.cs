@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace Aim2Pro.AIGG.Track
 {
-    /// One-window NL → Track builder:
+    /// One-window NL "�� Track builder:
     /// - Direct NL input (no clipboard)
     /// - Build / Append / Clear
     /// - Row gaps + tile gaps + safe start/finish
@@ -19,7 +19,7 @@ namespace Aim2Pro.AIGG.Track
         public static void Open() => GetWindow<NLTrackBuilderPro>("Track Builder Pro");
 
         [TextArea(3, 8)]
-        string nl = "120m by 3m, straight 100m, left curve 30°, gaps 8%, tile gaps 10%, chicane, slope 4%, seed 777";
+        string nl = "120m by 3m, straight 100m, left curve 30 deg, gaps 8%, tile gaps 10%, chicane, slope 4%, seed 777";
 
         // UI options
         bool appendFromLast = false;
@@ -59,8 +59,8 @@ namespace Aim2Pro.AIGG.Track
             }
 
             EditorGUILayout.HelpBox(
-                "Understands: “Xm by Ym”, “straight Xm”, “left/right curve Ndg/°”, “gaps N%”, “tile gaps N%”, “chicane”, “slope N%”, “seed N”, “width Xm”.\n" +
-                "Priorities: use P10|… (lower runs earlier). Defaults: straight P10, curves P20, slope P40, gaps P50.",
+                "Understands: """Xm by Ym""", """straight Xm""", """left/right curve Ndg/ deg""", """gaps N%""", """tile gaps N%""", """chicane""", """slope N%""", """seed N""", """width Xm""".\n" +
+                "Priorities: use P10|""� (lower runs earlier). Defaults: straight P10, curves P20, slope P40, gaps P50.",
                 MessageType.Info);
         }
 
@@ -109,9 +109,9 @@ namespace Aim2Pro.AIGG.Track
                 spec.cmds.Add($"P10|AppendStraight:{GetInt(m, 1, 10)}");
 
             // left/right curves
-            foreach (Match m in Regex.Matches(t, @"\bleft\s*curve\s*(\d+)\s*(?:°|deg)?\b", RegexOptions.IgnoreCase))
+            foreach (Match m in Regex.Matches(t, @"\bleft\s*curve\s*(\d+)\s*(?: deg|deg)?\b", RegexOptions.IgnoreCase))
                 spec.cmds.Add($"P20|AppendArc:left:{GetInt(m, 1, 15)}");
-            foreach (Match m in Regex.Matches(t, @"\bright\s*curve\s*(\d+)\s*(?:°|deg)?\b", RegexOptions.IgnoreCase))
+            foreach (Match m in Regex.Matches(t, @"\bright\s*curve\s*(\d+)\s*(?: deg|deg)?\b", RegexOptions.IgnoreCase))
                 spec.cmds.Add($"P20|AppendArc:right:{GetInt(m, 1, 15)}");
 
             // chicane
@@ -125,19 +125,13 @@ namespace Aim2Pro.AIGG.Track
             foreach (Match m in Regex.Matches(t, @"\b(?:slope|incline)\s*(\d+)%\b", RegexOptions.IgnoreCase))
                 spec.cmds.Add($"P40|SlopePercent:{GetInt(m, 1, 3)}");
 
-<<<<<<< HEAD
-            // row gaps  (allow comma after %)
-            foreach (Match m in Regex.Matches(t, @"\bgaps?(?:\s*of)?\s*(\d+)\s*%(?=\s|,|\.|;|$)", RegexOptions.IgnoreCase))
-                spec.cmds.Add($"P50|AddGaps:{GetInt(m, 1, 0)}");
 
-            // tile gaps (allow comma after %)
-=======
             // row gaps (robust to trailing comma)
             foreach (Match m in Regex.Matches(t, @"\bgaps?(?:\s*of)?\s*(\d+)\s*%(?=\s|,|\.|;|$)", RegexOptions.IgnoreCase))
                 spec.cmds.Add($"P50|AddGaps:{GetInt(m, 1, 0)}");
 
             // tile gaps (robust to trailing comma)
->>>>>>> 6e11856 (feat(track): replace placeholder with working NLTrackBuilderPro (row+tile gaps, priorities, append/clear, safe zones))
+ 6e11856 (feat(track): replace placeholder with working NLTrackBuilderPro (row+tile gaps, priorities, append/clear, safe zones))
             foreach (Match m in Regex.Matches(t, @"\btile\s*gaps?(?:\s*of)?\s*(\d+)\s*%(?=\s|,|\.|;|$)", RegexOptions.IgnoreCase))
                 spec.cmds.Add($"P50|AddGapsTile:{GetInt(m, 1, 0)}");
 
@@ -150,11 +144,9 @@ namespace Aim2Pro.AIGG.Track
 
             // manual P##| commands passed through
             foreach (Match m in Regex.Matches(t, @"\bP(\d{1,3})\|([^\s,;]+)\b", RegexOptions.IgnoreCase))
-<<<<<<< HEAD
-                spec.cmds.Add(m.Value.Trim());
-=======
+
                 spec.cmds.Add(m.Value.trim());
->>>>>>> 6e11856 (feat(track): replace placeholder with working NLTrackBuilderPro (row+tile gaps, priorities, append/clear, safe zones))
+ 6e11856 (feat(track): replace placeholder with working NLTrackBuilderPro (row+tile gaps, priorities, append/clear, safe zones))
 
             return spec;
         }
