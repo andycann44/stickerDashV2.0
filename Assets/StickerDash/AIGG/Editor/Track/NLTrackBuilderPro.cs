@@ -25,7 +25,7 @@ namespace Aim2Pro.AIGG.Track
 
         void OnEnable()
         {
-            minSize = new Vector2(280, 160);
+            minSize = new Vector2(280, 320);
             EditorGUIUtility.labelWidth = 80f;
         }
 
