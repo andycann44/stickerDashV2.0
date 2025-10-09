@@ -1,0 +1,6 @@
+# keep list
+Assets/AIGG/Spec/intents.json
+Assets/AIGG/Spec/lexicon.json
+Assets/AIGG/Spec/macros.json
+Assets/AIGG/Spec/commands.json
+Assets/AIGG/Spec/openai_prompt_trackgen.txt
